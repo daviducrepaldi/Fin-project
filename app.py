@@ -1,7 +1,10 @@
+import json
+import os
+import time
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-from src import db, fetcher, analyzer
+from src import fetcher, analyzer
 
 st.set_page_config(
     page_title="Financial Analyzer",
@@ -32,14 +35,46 @@ def _qlabel(period_str):
     return f"Q{(m-1)//3+1}'{y}"
 
 
-# ── data loading ──────────────────────────────────────────────────────────────
+# ── seed data (fallback for cold starts / rate-limited environments) ──────────
 
-@st.cache_data(ttl=86400, show_spinner=False)
-def load_ticker(ticker: str):
-    db.init_db()
-    data = fetcher.fetch_and_store(ticker)
-    result = analyzer.compute_ratios(data)
-    return data, result
+_SEED_PATH = os.path.join(os.path.dirname(__file__), 'seed_data.json')
+
+@st.cache_resource
+def _load_seed() -> dict:
+    try:
+        with open(_SEED_PATH) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _get_ticker(ticker: str):
+    """
+    Load data + compute ratios for one ticker.
+    Priority: session_state cache → live yfinance → seed JSON.
+    """
+    cache = st.session_state.setdefault('ticker_cache', {})
+    if ticker in cache:
+        return cache[ticker], None   # (data, result), warning_msg
+
+    # Try live fetch
+    try:
+        data = fetcher.fetch_and_store(ticker)
+        result = analyzer.compute_ratios(data)
+        cache[ticker] = (data, result)
+        return (data, result), None
+    except Exception:
+        pass
+
+    # Fall back to seed JSON
+    seed = _load_seed()
+    if ticker in seed:
+        data = seed[ticker]
+        result = analyzer.compute_ratios(data)
+        cache[ticker] = (data, result)
+        return (data, result), f"**{ticker}**: using pre-loaded data (live fetch unavailable)."
+
+    return None, f"**{ticker}**: unavailable — rate-limited and not in seed data."
 
 
 # ── sidebar ───────────────────────────────────────────────────────────────────
@@ -58,7 +93,7 @@ with st.sidebar:
     analyze_btn = st.button("Analyze", type="primary", use_container_width=True)
 
     st.divider()
-    st.caption("Data refreshes every hour per session.\nAdd tickers separated by spaces to compare side-by-side.")
+    st.caption("Live data cached per session.\nSeed data available for AAPL, MSFT, GOOGL.\nAdd tickers separated by spaces to compare.")
 
 tickers = [t.strip().upper() for t in tickers_input.split() if t.strip()]
 
@@ -80,23 +115,21 @@ if not tickers:
 
 # Load all tickers
 all_data, all_results = {}, {}
-for ticker in tickers:
+for i, ticker in enumerate(tickers):
+    if i > 0:
+        time.sleep(4)          # space out requests for multi-ticker
     with st.spinner(f"Fetching {ticker}…"):
-        try:
-            data, result = load_ticker(ticker)
+        result_tuple, warning = _get_ticker(ticker)
+        if warning:
+            if result_tuple:
+                st.info(warning)
+            else:
+                st.error(warning)
+                continue
+        if result_tuple:
+            data, result = result_tuple
             all_data[ticker] = data
             all_results[ticker] = result
-        except Exception:
-            # Rate-limited — fall back to SQLite cache
-            db.init_db()
-            data = db.fetch_all(ticker)
-            if data.get('income'):
-                result = analyzer.compute_ratios(data)
-                all_data[ticker] = data
-                all_results[ticker] = result
-                st.warning(f"**{ticker}**: rate-limited — showing cached data.")
-            else:
-                st.error(f"**{ticker}**: rate-limited and no cached data available. Try again in a moment.")
 
 if not all_results:
     st.stop()

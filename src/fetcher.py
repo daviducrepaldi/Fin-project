@@ -72,6 +72,7 @@ def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
 def _fetch(ticker: str) -> dict:
     t = yf.Ticker(ticker, session=_session)
     info = t.info or {}
+    time.sleep(3)                          # pause after info before next call
 
     # ── Company metadata ─────────────────────────────────────────
     db.upsert_company(ticker, info)
@@ -96,6 +97,7 @@ def _fetch(ticker: str) -> dict:
 
     # ── Income statement (quarterly) ──────────────────────────────
     inc_df = _get_df(t, 'quarterly_income_stmt', 'quarterly_financials')
+    time.sleep(2)
     if inc_df is not None:
         cols = list(inc_df.columns)[:MAX_QUARTERS]
         for col in cols:
@@ -122,6 +124,7 @@ def _fetch(ticker: str) -> dict:
 
     # ── Balance sheet (quarterly) ─────────────────────────────────
     bal_df = _get_df(t, 'quarterly_balance_sheet')
+    time.sleep(2)
     if bal_df is not None:
         cols = list(bal_df.columns)[:MAX_QUARTERS]
         for col in cols:
@@ -149,6 +152,7 @@ def _fetch(ticker: str) -> dict:
 
     # ── Cash flow (quarterly) ─────────────────────────────────────
     cf_df = _get_df(t, 'quarterly_cash_flow', 'quarterly_cashflow')
+    time.sleep(2)
     if cf_df is not None:
         cols = list(cf_df.columns)[:MAX_QUARTERS]
         for col in cols:
