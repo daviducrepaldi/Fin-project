@@ -1,16 +1,21 @@
 import math
 import time
-import requests
 import yfinance as yf
 from src import db
 
 MAX_QUARTERS = 16  # ~4 years
 
-# Shared session with browser-like UA to reduce 429s on shared IPs (e.g. Streamlit Cloud)
-_session = requests.Session()
-_session.headers.update({
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-})
+# curl_cffi impersonates a real browser (TLS fingerprint + headers) which Yahoo Finance
+# now requires to avoid 429s — especially on shared IPs like Streamlit Cloud.
+try:
+    from curl_cffi import requests as curl_requests
+    _session = curl_requests.Session(impersonate="chrome110")
+except ImportError:
+    import requests
+    _session = requests.Session()
+    _session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    })
 
 
 def _get_df(ticker_obj, *attrs):
