@@ -1,0 +1,210 @@
+{
+  "company": {
+    "ticker": "GOOGL",
+    "name": "Alphabet Inc.",
+    "sector": "Communication Services",
+    "industry": "Internet Content & Information",
+    "currency": "USD",
+    "exchange": "NMS",
+    "last_updated": "2026-03-17"
+  },
+  "market": {
+    "id": 7,
+    "ticker": "GOOGL",
+    "fetched_date": "2026-03-17",
+    "market_cap": 3696359374848.0,
+    "enterprise_value": 3636512423936.0,
+    "shares_outstanding": 5822000000.0,
+    "price": 305.56,
+    "pe_trailing": 28.240295,
+    "pe_forward": 22.783636,
+    "pb_ratio": 8.894711,
+    "ev_ebitda_info": 24.215,
+    "ev_revenue_info": 9.027,
+    "dividend_yield": 0.27,
+    "beta": 1.112,
+    "week52_high": 349.0,
+    "week52_low": 140.53
+  },
+  "income": [
+    {
+      "id": 35,
+      "ticker": "GOOGL",
+      "period": "2025-12-31",
+      "revenue": 113829000000.0,
+      "gross_profit": 68062000000.0,
+      "operating_income": 35934000000.0,
+      "net_income": 34455000000.0,
+      "ebitda": 45455000000.0,
+      "interest_expense": 298000000.0,
+      "depreciation_amortization": 6040000000.0
+    },
+    {
+      "id": 36,
+      "ticker": "GOOGL",
+      "period": "2025-09-30",
+      "revenue": 102346000000.0,
+      "gross_profit": 60977000000.0,
+      "operating_income": 31228000000.0,
+      "net_income": 34979000000.0,
+      "ebitda": 49741000000.0,
+      "interest_expense": 143000000.0,
+      "depreciation_amortization": 5611000000.0
+    },
+    {
+      "id": 37,
+      "ticker": "GOOGL",
+      "period": "2025-06-30",
+      "revenue": 96428000000.0,
+      "gross_profit": 57389000000.0,
+      "operating_income": 31271000000.0,
+      "net_income": 28196000000.0,
+      "ebitda": 39192000000.0,
+      "interest_expense": 261000000.0,
+      "depreciation_amortization": 4998000000.0
+    },
+    {
+      "id": 38,
+      "ticker": "GOOGL",
+      "period": "2025-03-31",
+      "revenue": 90234000000.0,
+      "gross_profit": 53873000000.0,
+      "operating_income": 30606000000.0,
+      "net_income": 34540000000.0,
+      "ebitda": 46310000000.0,
+      "interest_expense": 34000000.0,
+      "depreciation_amortization": 4487000000.0
+    },
+    {
+      "id": 39,
+      "ticker": "GOOGL",
+      "period": "2024-12-31",
+      "revenue": 96469000000.0,
+      "gross_profit": 55856000000.0,
+      "operating_income": 30972000000.0,
+      "net_income": 26536000000.0,
+      "ebitda": 36501000000.0,
+      "interest_expense": 53000000.0,
+      "depreciation_amortization": 4205000000.0
+    }
+  ],
+  "balance": [
+    {
+      "id": 41,
+      "ticker": "GOOGL",
+      "period": "2025-12-31",
+      "total_assets": 595281000000.0,
+      "total_liabilities": 180016000000.0,
+      "equity": 415265000000.0,
+      "cash": 30708000000.0,
+      "total_debt": 59291000000.0,
+      "current_assets": 206038000000.0,
+      "current_liabilities": 102745000000.0,
+      "inventory": null
+    },
+    {
+      "id": 42,
+      "ticker": "GOOGL",
+      "period": "2025-09-30",
+      "total_assets": 536469000000.0,
+      "total_liabilities": 149602000000.0,
+      "equity": 386867000000.0,
+      "cash": 23090000000.0,
+      "total_debt": 33713000000.0,
+      "current_assets": 173947000000.0,
+      "current_liabilities": 99550000000.0,
+      "inventory": null
+    },
+    {
+      "id": 43,
+      "ticker": "GOOGL",
+      "period": "2025-06-30",
+      "total_assets": 502053000000.0,
+      "total_liabilities": 139137000000.0,
+      "equity": 362916000000.0,
+      "cash": 21036000000.0,
+      "total_debt": 35559000000.0,
+      "current_assets": 166216000000.0,
+      "current_liabilities": 87310000000.0,
+      "inventory": null
+    },
+    {
+      "id": 44,
+      "ticker": "GOOGL",
+      "period": "2025-03-31",
+      "total_assets": 475374000000.0,
+      "total_liabilities": 130107000000.0,
+      "equity": 345267000000.0,
+      "cash": 23264000000.0,
+      "total_debt": 23564000000.0,
+      "current_assets": 162052000000.0,
+      "current_liabilities": 91654000000.0,
+      "inventory": null
+    },
+    {
+      "id": 45,
+      "ticker": "GOOGL",
+      "period": "2024-12-31",
+      "total_assets": 450256000000.0,
+      "total_liabilities": 125172000000.0,
+      "equity": 325084000000.0,
+      "cash": 23466000000.0,
+      "total_debt": 22574000000.0,
+      "current_assets": 163711000000.0,
+      "current_liabilities": 89122000000.0,
+      "inventory": null
+    }
+  ],
+  "cashflow": [
+    {
+      "id": 40,
+      "ticker": "GOOGL",
+      "period": "2025-12-31",
+      "operating_cf": 52402000000.0,
+      "investing_cf": -51776000000.0,
+      "financing_cf": 7028000000.0,
+      "capex": -27851000000.0,
+      "free_cash_flow": 24551000000.0
+    },
+    {
+      "id": 41,
+      "ticker": "GOOGL",
+      "period": "2025-09-30",
+      "operating_cf": 48414000000.0,
+      "investing_cf": -27777000000.0,
+      "financing_cf": -18383000000.0,
+      "capex": -23953000000.0,
+      "free_cash_flow": 24461000000.0
+    },
+    {
+      "id": 42,
+      "ticker": "GOOGL",
+      "period": "2025-06-30",
+      "operating_cf": 27747000000.0,
+      "investing_cf": -24544000000.0,
+      "financing_cf": -5832000000.0,
+      "capex": -22446000000.0,
+      "free_cash_flow": 5301000000.0
+    },
+    {
+      "id": 43,
+      "ticker": "GOOGL",
+      "period": "2025-03-31",
+      "operating_cf": 36150000000.0,
+      "investing_cf": -16194000000.0,
+      "financing_cf": -20201000000.0,
+      "capex": -17197000000.0,
+      "free_cash_flow": 18953000000.0
+    },
+    {
+      "id": 44,
+      "ticker": "GOOGL",
+      "period": "2024-12-31",
+      "operating_cf": 39113000000.0,
+      "investing_cf": -16180000000.0,
+      "financing_cf": -19036000000.0,
+      "capex": -14276000000.0,
+      "free_cash_flow": 24837000000.0
+    }
+  ]
+}

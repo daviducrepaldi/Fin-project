@@ -1,0 +1,210 @@
+{
+  "company": {
+    "ticker": "JPM",
+    "name": "JPMorgan Chase & Co.",
+    "sector": "Financial Services",
+    "industry": "Banks - Diversified",
+    "currency": "USD",
+    "exchange": "NYQ",
+    "last_updated": "2026-03-17"
+  },
+  "market": {
+    "id": 13,
+    "ticker": "JPM",
+    "fetched_date": "2026-03-17",
+    "market_cap": 771782803456.0,
+    "enterprise_value": 530112774144.0,
+    "shares_outstanding": 2697032375.0,
+    "price": 286.16,
+    "pe_trailing": 14.28657,
+    "pe_forward": 12.181003,
+    "pb_ratio": 2.2534413,
+    "ev_ebitda_info": null,
+    "ev_revenue_info": 3.151,
+    "dividend_yield": 2.1,
+    "beta": 1.059,
+    "week52_high": 337.25,
+    "week52_low": 202.16
+  },
+  "income": [
+    {
+      "id": 71,
+      "ticker": "JPM",
+      "period": "2025-12-31",
+      "revenue": 45796000000.0,
+      "gross_profit": null,
+      "operating_income": null,
+      "net_income": 13025000000.0,
+      "ebitda": null,
+      "interest_expense": 23813000000.0,
+      "depreciation_amortization": 2312000000.0
+    },
+    {
+      "id": 72,
+      "ticker": "JPM",
+      "period": "2025-09-30",
+      "revenue": 46430000000.0,
+      "gross_profit": null,
+      "operating_income": null,
+      "net_income": 14393000000.0,
+      "ebitda": null,
+      "interest_expense": 25473000000.0,
+      "depreciation_amortization": 2269000000.0
+    },
+    {
+      "id": 73,
+      "ticker": "JPM",
+      "period": "2025-06-30",
+      "revenue": 44882000000.0,
+      "gross_profit": null,
+      "operating_income": null,
+      "net_income": 14987000000.0,
+      "ebitda": null,
+      "interest_expense": 25032000000.0,
+      "depreciation_amortization": 2210000000.0
+    },
+    {
+      "id": 74,
+      "ticker": "JPM",
+      "period": "2025-03-31",
+      "revenue": 45327000000.0,
+      "gross_profit": null,
+      "operating_income": null,
+      "net_income": 14643000000.0,
+      "ebitda": null,
+      "interest_expense": 23580000000.0,
+      "depreciation_amortization": 2030000000.0
+    },
+    {
+      "id": 75,
+      "ticker": "JPM",
+      "period": "2024-12-31",
+      "revenue": 42791000000.0,
+      "gross_profit": null,
+      "operating_income": null,
+      "net_income": 14005000000.0,
+      "ebitda": null,
+      "interest_expense": 24216000000.0,
+      "depreciation_amortization": 1965000000.0
+    }
+  ],
+  "balance": [
+    {
+      "id": 81,
+      "ticker": "JPM",
+      "period": "2025-12-31",
+      "total_assets": 4424900000000.0,
+      "total_liabilities": 4062462000000.0,
+      "equity": 362438000000.0,
+      "cash": 343338000000.0,
+      "total_debt": 499982000000.0,
+      "current_assets": null,
+      "current_liabilities": null,
+      "inventory": null
+    },
+    {
+      "id": 82,
+      "ticker": "JPM",
+      "period": "2025-09-30",
+      "total_assets": 4560205000000.0,
+      "total_liabilities": 4199993000000.0,
+      "equity": 360212000000.0,
+      "cash": 303436000000.0,
+      "total_debt": 496558000000.0,
+      "current_assets": null,
+      "current_liabilities": null,
+      "inventory": null
+    },
+    {
+      "id": 83,
+      "ticker": "JPM",
+      "period": "2025-06-30",
+      "total_assets": 4552482000000.0,
+      "total_liabilities": 4195558000000.0,
+      "equity": 356924000000.0,
+      "cash": 420327000000.0,
+      "total_debt": 485095000000.0,
+      "current_assets": null,
+      "current_liabilities": null,
+      "inventory": null
+    },
+    {
+      "id": 84,
+      "ticker": "JPM",
+      "period": "2025-03-31",
+      "total_assets": 4357856000000.0,
+      "total_liabilities": 4006436000000.0,
+      "equity": 351420000000.0,
+      "cash": 425903000000.0,
+      "total_debt": 472204000000.0,
+      "current_assets": null,
+      "current_liabilities": null,
+      "inventory": null
+    },
+    {
+      "id": 85,
+      "ticker": "JPM",
+      "period": "2024-12-31",
+      "total_assets": 4002814000000.0,
+      "total_liabilities": 3658056000000.0,
+      "equity": 344758000000.0,
+      "cash": 469317000000.0,
+      "total_debt": 454311000000.0,
+      "current_assets": null,
+      "current_liabilities": null,
+      "inventory": null
+    }
+  ],
+  "cashflow": [
+    {
+      "id": 77,
+      "ticker": "JPM",
+      "period": "2025-12-31",
+      "operating_cf": 119724000000.0,
+      "investing_cf": 46882000000.0,
+      "financing_cf": -123557000000.0,
+      "capex": null,
+      "free_cash_flow": 119724000000.0
+    },
+    {
+      "id": 78,
+      "ticker": "JPM",
+      "period": "2025-09-30",
+      "operating_cf": -45214000000.0,
+      "investing_cf": -21311000000.0,
+      "financing_cf": -47773000000.0,
+      "capex": null,
+      "free_cash_flow": -45214000000.0
+    },
+    {
+      "id": 79,
+      "ticker": "JPM",
+      "period": "2025-06-30",
+      "operating_cf": 29547000000.0,
+      "investing_cf": -173060000000.0,
+      "financing_cf": 122804000000.0,
+      "capex": null,
+      "free_cash_flow": 29547000000.0
+    },
+    {
+      "id": 80,
+      "ticker": "JPM",
+      "period": "2025-03-31",
+      "operating_cf": -251839000000.0,
+      "investing_cf": -118076000000.0,
+      "financing_cf": 318059000000.0,
+      "capex": null,
+      "free_cash_flow": -251839000000.0
+    },
+    {
+      "id": 81,
+      "ticker": "JPM",
+      "period": "2024-12-31",
+      "operating_cf": 147758000000.0,
+      "investing_cf": 17620000000.0,
+      "financing_cf": -115705000000.0,
+      "capex": null,
+      "free_cash_flow": 147758000000.0
+    }
+  ]
+}

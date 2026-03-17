@@ -1,0 +1,210 @@
+{
+  "company": {
+    "ticker": "AMZN",
+    "name": "Amazon.com, Inc.",
+    "sector": "Consumer Cyclical",
+    "industry": "Internet Retail",
+    "currency": "USD",
+    "exchange": "NMS",
+    "last_updated": "2026-03-17"
+  },
+  "market": {
+    "id": 12,
+    "ticker": "AMZN",
+    "fetched_date": "2026-03-17",
+    "market_cap": 2273012088832.0,
+    "enterprise_value": 2328530255872.0,
+    "shares_outstanding": 10734920870.0,
+    "price": 211.74,
+    "pe_trailing": 29.490252,
+    "pe_forward": 22.665747,
+    "pb_ratio": 5.5275936,
+    "ev_ebitda_info": 15.978,
+    "ev_revenue_info": 3.248,
+    "dividend_yield": null,
+    "beta": 1.42,
+    "week52_high": 258.6,
+    "week52_low": 161.38
+  },
+  "income": [
+    {
+      "id": 66,
+      "ticker": "AMZN",
+      "period": "2025-12-31",
+      "revenue": 213386000000.0,
+      "gross_profit": 103427000000.0,
+      "operating_income": 24977000000.0,
+      "net_income": 21192000000.0,
+      "ebitda": 46755000000.0,
+      "interest_expense": 679000000.0,
+      "depreciation_amortization": 19471000000.0
+    },
+    {
+      "id": 67,
+      "ticker": "AMZN",
+      "period": "2025-09-30",
+      "revenue": 180169000000.0,
+      "gross_profit": 91499000000.0,
+      "operating_income": 17422000000.0,
+      "net_income": 21187000000.0,
+      "ebitda": 45504000000.0,
+      "interest_expense": 538000000.0,
+      "depreciation_amortization": 16796000000.0
+    },
+    {
+      "id": 68,
+      "ticker": "AMZN",
+      "period": "2025-06-30",
+      "revenue": 167702000000.0,
+      "gross_profit": 86893000000.0,
+      "operating_income": 19171000000.0,
+      "net_income": 18164000000.0,
+      "ebitda": 36600000000.0,
+      "interest_expense": 516000000.0,
+      "depreciation_amortization": 15227000000.0
+    },
+    {
+      "id": 69,
+      "ticker": "AMZN",
+      "period": "2025-03-31",
+      "revenue": 155667000000.0,
+      "gross_profit": 78691000000.0,
+      "operating_income": 18405000000.0,
+      "net_income": 17127000000.0,
+      "ebitda": 36482000000.0,
+      "interest_expense": 541000000.0,
+      "depreciation_amortization": 14262000000.0
+    },
+    {
+      "id": 70,
+      "ticker": "AMZN",
+      "period": "2024-12-31",
+      "revenue": 187792000000.0,
+      "gross_profit": 88899000000.0,
+      "operating_income": 21203000000.0,
+      "net_income": 20004000000.0,
+      "ebitda": 38550000000.0,
+      "interest_expense": 570000000.0,
+      "depreciation_amortization": 15631000000.0
+    }
+  ],
+  "balance": [
+    {
+      "id": 75,
+      "ticker": "AMZN",
+      "period": "2025-12-31",
+      "total_assets": 818042000000.0,
+      "total_liabilities": 406977000000.0,
+      "equity": 411065000000.0,
+      "cash": 86810000000.0,
+      "total_debt": 152987000000.0,
+      "current_assets": 229083000000.0,
+      "current_liabilities": 218005000000.0,
+      "inventory": 38325000000.0
+    },
+    {
+      "id": 76,
+      "ticker": "AMZN",
+      "period": "2025-09-30",
+      "total_assets": 727921000000.0,
+      "total_liabilities": 358290000000.0,
+      "equity": 369631000000.0,
+      "cash": 66922000000.0,
+      "total_debt": 135419000000.0,
+      "current_assets": 196866000000.0,
+      "current_liabilities": 195196000000.0,
+      "inventory": 41494000000.0
+    },
+    {
+      "id": 77,
+      "ticker": "AMZN",
+      "period": "2025-06-30",
+      "total_assets": 682170000000.0,
+      "total_liabilities": 348395000000.0,
+      "equity": 333775000000.0,
+      "cash": 57741000000.0,
+      "total_debt": 133939000000.0,
+      "current_assets": 191420000000.0,
+      "current_liabilities": 186921000000.0,
+      "inventory": 40825000000.0
+    },
+    {
+      "id": 78,
+      "ticker": "AMZN",
+      "period": "2025-03-31",
+      "total_assets": 643256000000.0,
+      "total_liabilities": 337389000000.0,
+      "equity": 305867000000.0,
+      "cash": 66207000000.0,
+      "total_debt": 133245000000.0,
+      "current_assets": 184645000000.0,
+      "current_liabilities": 176171000000.0,
+      "inventory": 35864000000.0
+    },
+    {
+      "id": 79,
+      "ticker": "AMZN",
+      "period": "2024-12-31",
+      "total_assets": 624894000000.0,
+      "total_liabilities": 338924000000.0,
+      "equity": 285970000000.0,
+      "cash": 78779000000.0,
+      "total_debt": 130900000000.0,
+      "current_assets": 190867000000.0,
+      "current_liabilities": 179431000000.0,
+      "inventory": 34214000000.0
+    }
+  ],
+  "cashflow": [
+    {
+      "id": 70,
+      "ticker": "AMZN",
+      "period": "2025-12-31",
+      "operating_cf": 54459000000.0,
+      "investing_cf": -47245000000.0,
+      "financing_cf": 12291000000.0,
+      "capex": -39522000000.0,
+      "free_cash_flow": 14937000000.0
+    },
+    {
+      "id": 71,
+      "ticker": "AMZN",
+      "period": "2025-09-30",
+      "operating_cf": 35525000000.0,
+      "investing_cf": -26073000000.0,
+      "financing_cf": -44000000.0,
+      "capex": -35095000000.0,
+      "free_cash_flow": 430000000.0
+    },
+    {
+      "id": 72,
+      "ticker": "AMZN",
+      "period": "2025-06-30",
+      "operating_cf": 32515000000.0,
+      "investing_cf": -39424000000.0,
+      "financing_cf": -2539000000.0,
+      "capex": -32183000000.0,
+      "free_cash_flow": 332000000.0
+    },
+    {
+      "id": 73,
+      "ticker": "AMZN",
+      "period": "2025-03-31",
+      "operating_cf": 17015000000.0,
+      "investing_cf": -29803000000.0,
+      "financing_cf": -47000000.0,
+      "capex": -25019000000.0,
+      "free_cash_flow": -8004000000.0
+    },
+    {
+      "id": 74,
+      "ticker": "AMZN",
+      "period": "2024-12-31",
+      "operating_cf": 45636000000.0,
+      "investing_cf": -37443000000.0,
+      "financing_cf": -3308000000.0,
+      "capex": -27834000000.0,
+      "free_cash_flow": 17802000000.0
+    }
+  ]
+}

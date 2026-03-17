@@ -1,10 +1,14 @@
 import json
+import math
 import os
 import time
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 from src import fetcher, analyzer
+
+AVAILABLE_TICKERS = ['AAPL', 'AMZN', 'GOOGL', 'JPM', 'META', 'MSFT', 'NVDA', 'TSLA']
+DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
 st.set_page_config(
     page_title="Financial Analyzer",
@@ -35,101 +39,147 @@ def _qlabel(period_str):
     return f"Q{(m-1)//3+1}'{y}"
 
 
-# ── seed data (fallback for cold starts / rate-limited environments) ──────────
+# ── static data loading ───────────────────────────────────────────────────────
 
-_SEED_PATH = os.path.join(os.path.dirname(__file__), 'seed_data.json')
-
-@st.cache_resource
-def _load_seed() -> dict:
+def _load_file(ticker: str):
+    """Load pre-fetched data from data/{TICKER}.json. Returns None if not found."""
+    path = os.path.join(DATA_DIR, f'{ticker}.json')
     try:
-        with open(_SEED_PATH) as f:
+        with open(path) as f:
             return json.load(f)
-    except Exception:
-        return {}
+    except FileNotFoundError:
+        return None
 
 
-def _get_ticker(ticker: str):
+def _save_file(ticker: str, data: dict):
+    """Write data back to data/{TICKER}.json (works locally; silent no-op on Cloud)."""
+    def _clean(obj):
+        if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+            return None
+        if isinstance(obj, dict):  return {k: _clean(v) for k, v in obj.items()}
+        if isinstance(obj, list):  return [_clean(v) for v in obj]
+        return obj
+    os.makedirs(DATA_DIR, exist_ok=True)
+    with open(os.path.join(DATA_DIR, f'{ticker}.json'), 'w') as f:
+        json.dump(_clean(data), f, indent=2)
+
+
+def _get_ticker(ticker: str, force_refresh: bool = False):
     """
-    Load data + compute ratios for one ticker.
-    Priority: session_state cache → live yfinance → seed JSON.
+    Returns ((data, result), warning_msg).
+    Priority:
+      • session_state cache (skipped if force_refresh)
+      • force_refresh=True → live yfinance, falls back to static on failure
+      • default → data/{TICKER}.json
+      • not found → friendly error listing available tickers
     """
     cache = st.session_state.setdefault('ticker_cache', {})
-    if ticker in cache:
-        return cache[ticker], None   # (data, result), warning_msg
 
-    # Try live fetch
-    try:
-        data = fetcher.fetch_and_store(ticker)
+    if not force_refresh and ticker in cache:
+        return cache[ticker], None
+
+    if force_refresh:
+        try:
+            with st.spinner(f"Fetching live data for {ticker}…"):
+                data = fetcher.fetch_and_store(ticker)
+            result = analyzer.compute_ratios(data)
+            cache[ticker] = (data, result)
+            try:
+                _save_file(ticker, data)
+            except Exception:
+                pass   # Cloud filesystem is read-only — that's fine
+            return (data, result), None
+        except Exception as e:
+            data = _load_file(ticker)
+            if data:
+                result = analyzer.compute_ratios(data)
+                cache[ticker] = (data, result)
+                return (data, result), f"Live fetch failed — showing static data for **{ticker}**."
+            return None, f"Live fetch failed and **{ticker}** has no static data."
+
+    # Default: load from static file
+    data = _load_file(ticker)
+    if data:
         result = analyzer.compute_ratios(data)
         cache[ticker] = (data, result)
         return (data, result), None
-    except Exception:
-        pass
 
-    # Fall back to seed JSON
-    seed = _load_seed()
-    if ticker in seed:
-        data = seed[ticker]
-        result = analyzer.compute_ratios(data)
-        cache[ticker] = (data, result)
-        return (data, result), f"**{ticker}**: using pre-loaded data (live fetch unavailable)."
-
-    return None, f"**{ticker}**: unavailable — rate-limited and not in seed data."
+    available = '  ·  '.join(AVAILABLE_TICKERS)
+    return None, f"**{ticker}** is not in the local dataset.\n\nAvailable tickers: {available}"
 
 
 # ── sidebar ───────────────────────────────────────────────────────────────────
 
 with st.sidebar:
     st.markdown("## 📊 Financial Analyzer")
-    st.caption("Powered by yfinance · SQLite · Streamlit")
+    st.caption("Powered by yfinance · Streamlit")
     st.divider()
 
     tickers_input = st.text_input(
         "Ticker(s)",
         value="AAPL",
-        placeholder="AAPL MSFT GOOG",
-        help="Space-separated list of stock tickers",
+        placeholder="AAPL MSFT GOOGL",
+        help="Space-separated. Available: " + ", ".join(AVAILABLE_TICKERS),
     )
     analyze_btn = st.button("Analyze", type="primary", use_container_width=True)
+    refresh_btn = st.button(
+        "🔄 Refresh live data",
+        use_container_width=True,
+        help="Fetch latest data from yfinance. May be slow or rate-limited.",
+    )
 
     st.divider()
-    st.caption("Live data cached per session.\nSeed data available for AAPL, MSFT, GOOGL.\nAdd tickers separated by spaces to compare.")
+    st.caption(
+        "**Pre-loaded tickers:**\n" + "  ·  ".join(AVAILABLE_TICKERS) +
+        "\n\nOther tickers require a live fetch via the Refresh button."
+    )
 
 tickers = [t.strip().upper() for t in tickers_input.split() if t.strip()]
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
-if not analyze_btn:
+# Track which tickers are "active" and whether a refresh was requested
+if analyze_btn:
+    st.session_state['active_tickers'] = tickers
+    st.session_state.pop('force_refresh', None)
+
+if refresh_btn:
+    # Clear session cache for current tickers so they re-fetch
+    for t in st.session_state.get('active_tickers', tickers):
+        st.session_state.get('ticker_cache', {}).pop(t, None)
+    st.session_state['active_tickers'] = st.session_state.get('active_tickers', tickers)
+    st.session_state['force_refresh'] = True
+
+active_tickers = st.session_state.get('active_tickers', [])
+force_refresh  = st.session_state.pop('force_refresh', False)
+
+if not active_tickers:
     st.markdown("## 📊 Financial Statement Analyzer")
     st.markdown(
         "Enter one or more tickers in the sidebar and click **Analyze**.\n\n"
         "**Features:** Quarterly financials · TTM aggregates · Margin trends · "
-        "YoY growth · Liquidity & leverage · Valuation multiples · Multi-ticker comparison"
+        "YoY growth · Liquidity & leverage · Valuation multiples · Multi-ticker comparison\n\n"
+        f"**Pre-loaded:** {', '.join(AVAILABLE_TICKERS)}"
     )
-    st.stop()
-
-if not tickers:
-    st.warning("Enter at least one ticker symbol.")
     st.stop()
 
 # Load all tickers
 all_data, all_results = {}, {}
-for i, ticker in enumerate(tickers):
-    if i > 0:
-        time.sleep(4)          # space out requests for multi-ticker
-    with st.spinner(f"Fetching {ticker}…"):
-        result_tuple, warning = _get_ticker(ticker)
-        if warning:
-            if result_tuple:
-                st.info(warning)
-            else:
-                st.error(warning)
-                continue
+for i, ticker in enumerate(active_tickers):
+    if force_refresh and i > 0:
+        time.sleep(4)   # space out live requests for multi-ticker
+    result_tuple, warning = _get_ticker(ticker, force_refresh=force_refresh)
+    if warning:
         if result_tuple:
-            data, result = result_tuple
-            all_data[ticker] = data
-            all_results[ticker] = result
+            st.info(warning)
+        else:
+            st.error(warning)
+            continue
+    if result_tuple:
+        data, result = result_tuple
+        all_data[ticker] = data
+        all_results[ticker] = result
 
 if not all_results:
     st.stop()

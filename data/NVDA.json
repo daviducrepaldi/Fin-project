@@ -1,0 +1,210 @@
+{
+  "company": {
+    "ticker": "NVDA",
+    "name": "NVIDIA Corporation",
+    "sector": "Technology",
+    "industry": "Semiconductors",
+    "currency": "USD",
+    "exchange": "NMS",
+    "last_updated": "2026-03-17"
+  },
+  "market": {
+    "id": 15,
+    "ticker": "NVDA",
+    "fetched_date": "2026-03-17",
+    "market_cap": 4453162287104.0,
+    "enterprise_value": 4401102061568.0,
+    "shares_outstanding": 24300000000.0,
+    "price": 183.22,
+    "pe_trailing": 37.468304,
+    "pe_forward": 16.97077,
+    "pb_ratio": 28.30964,
+    "ev_ebitda_info": 33.034,
+    "ev_revenue_info": 20.381,
+    "dividend_yield": 0.02,
+    "beta": 2.375,
+    "week52_high": 212.19,
+    "week52_low": 86.62
+  },
+  "income": [
+    {
+      "id": 83,
+      "ticker": "NVDA",
+      "period": "2026-01-31",
+      "revenue": 68127000000.0,
+      "gross_profit": 51093000000.0,
+      "operating_income": 44299000000.0,
+      "net_income": 42960000000.0,
+      "ebitda": 51283000000.0,
+      "interest_expense": 73000000.0,
+      "depreciation_amortization": 812000000.0
+    },
+    {
+      "id": 84,
+      "ticker": "NVDA",
+      "period": "2025-10-31",
+      "revenue": 57006000000.0,
+      "gross_profit": 41849000000.0,
+      "operating_income": 36010000000.0,
+      "net_income": 31910000000.0,
+      "ebitda": 38748000000.0,
+      "interest_expense": 61000000.0,
+      "depreciation_amortization": 751000000.0
+    },
+    {
+      "id": 85,
+      "ticker": "NVDA",
+      "period": "2025-07-31",
+      "revenue": 46743000000.0,
+      "gross_profit": 33853000000.0,
+      "operating_income": 28440000000.0,
+      "net_income": 26422000000.0,
+      "ebitda": 31937000000.0,
+      "interest_expense": 62000000.0,
+      "depreciation_amortization": 669000000.0
+    },
+    {
+      "id": 86,
+      "ticker": "NVDA",
+      "period": "2025-04-30",
+      "revenue": 44062000000.0,
+      "gross_profit": 26668000000.0,
+      "operating_income": 21638000000.0,
+      "net_income": 18775000000.0,
+      "ebitda": 22584000000.0,
+      "interest_expense": 63000000.0,
+      "depreciation_amortization": 611000000.0
+    },
+    {
+      "id": 87,
+      "ticker": "NVDA",
+      "period": "2025-01-31",
+      "revenue": 39331000000.0,
+      "gross_profit": 28723000000.0,
+      "operating_income": 24034000000.0,
+      "net_income": 22091000000.0,
+      "ebitda": 25821000000.0,
+      "interest_expense": 61000000.0,
+      "depreciation_amortization": 543000000.0
+    }
+  ],
+  "balance": [
+    {
+      "id": 94,
+      "ticker": "NVDA",
+      "period": "2026-01-31",
+      "total_assets": 206803000000.0,
+      "total_liabilities": 49510000000.0,
+      "equity": 157293000000.0,
+      "cash": 10605000000.0,
+      "total_debt": 11040000000.0,
+      "current_assets": 125605000000.0,
+      "current_liabilities": 32163000000.0,
+      "inventory": 21403000000.0
+    },
+    {
+      "id": 95,
+      "ticker": "NVDA",
+      "period": "2025-10-31",
+      "total_assets": 161148000000.0,
+      "total_liabilities": 42251000000.0,
+      "equity": 118897000000.0,
+      "cash": 11486000000.0,
+      "total_debt": 10481000000.0,
+      "current_assets": 116492000000.0,
+      "current_liabilities": 26075000000.0,
+      "inventory": 19784000000.0
+    },
+    {
+      "id": 96,
+      "ticker": "NVDA",
+      "period": "2025-07-31",
+      "total_assets": 140740000000.0,
+      "total_liabilities": 40609000000.0,
+      "equity": 100131000000.0,
+      "cash": 11639000000.0,
+      "total_debt": 10598000000.0,
+      "current_assets": 102219000000.0,
+      "current_liabilities": 24257000000.0,
+      "inventory": 14962000000.0
+    },
+    {
+      "id": 97,
+      "ticker": "NVDA",
+      "period": "2025-04-30",
+      "total_assets": 125254000000.0,
+      "total_liabilities": 41411000000.0,
+      "equity": 83843000000.0,
+      "cash": 15234000000.0,
+      "total_debt": 10285000000.0,
+      "current_assets": 89935000000.0,
+      "current_liabilities": 26542000000.0,
+      "inventory": 11333000000.0
+    },
+    {
+      "id": 98,
+      "ticker": "NVDA",
+      "period": "2025-01-31",
+      "total_assets": 111601000000.0,
+      "total_liabilities": 32274000000.0,
+      "equity": 79327000000.0,
+      "cash": 8589000000.0,
+      "total_debt": 9982000000.0,
+      "current_assets": 80126000000.0,
+      "current_liabilities": 18047000000.0,
+      "inventory": 10080000000.0
+    }
+  ],
+  "cashflow": [
+    {
+      "id": 90,
+      "ticker": "NVDA",
+      "period": "2026-01-31",
+      "operating_cf": 36188000000.0,
+      "investing_cf": -30861000000.0,
+      "financing_cf": -6208000000.0,
+      "capex": -1284000000.0,
+      "free_cash_flow": 34904000000.0
+    },
+    {
+      "id": 91,
+      "ticker": "NVDA",
+      "period": "2025-10-31",
+      "operating_cf": 23751000000.0,
+      "investing_cf": -9024000000.0,
+      "financing_cf": -14880000000.0,
+      "capex": -1636000000.0,
+      "free_cash_flow": 22115000000.0
+    },
+    {
+      "id": 92,
+      "ticker": "NVDA",
+      "period": "2025-07-31",
+      "operating_cf": 15365000000.0,
+      "investing_cf": -7127000000.0,
+      "financing_cf": -11833000000.0,
+      "capex": -1895000000.0,
+      "free_cash_flow": 13470000000.0
+    },
+    {
+      "id": 93,
+      "ticker": "NVDA",
+      "period": "2025-04-30",
+      "operating_cf": 27414000000.0,
+      "investing_cf": -5216000000.0,
+      "financing_cf": -15553000000.0,
+      "capex": -1227000000.0,
+      "free_cash_flow": 26187000000.0
+    },
+    {
+      "id": 94,
+      "ticker": "NVDA",
+      "period": "2025-01-31",
+      "operating_cf": 16629000000.0,
+      "investing_cf": -7198000000.0,
+      "financing_cf": -9949000000.0,
+      "capex": -1077000000.0,
+      "free_cash_flow": 15552000000.0
+    }
+  ]
+}

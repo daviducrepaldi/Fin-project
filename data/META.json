@@ -1,0 +1,210 @@
+{
+  "company": {
+    "ticker": "META",
+    "name": "Meta Platforms, Inc.",
+    "sector": "Communication Services",
+    "industry": "Internet Content & Information",
+    "currency": "USD",
+    "exchange": "NMS",
+    "last_updated": "2026-03-17"
+  },
+  "market": {
+    "id": 14,
+    "ticker": "META",
+    "fetched_date": "2026-03-17",
+    "market_cap": 1587169591296.0,
+    "enterprise_value": 1590658596864.0,
+    "shares_outstanding": 2187177748.0,
+    "price": 627.45,
+    "pe_trailing": 26.73413,
+    "pe_forward": 17.487457,
+    "pb_ratio": 7.3072314,
+    "ev_ebitda_info": 15.611,
+    "ev_revenue_info": 7.915,
+    "dividend_yield": 0.33,
+    "beta": 1.279,
+    "week52_high": 796.25,
+    "week52_low": 479.8
+  },
+  "income": [
+    {
+      "id": 78,
+      "ticker": "META",
+      "period": "2025-12-31",
+      "revenue": 59893000000.0,
+      "gross_profit": 48987000000.0,
+      "operating_income": 24745000000.0,
+      "net_income": 22768000000.0,
+      "ebitda": 31221000000.0,
+      "interest_expense": 456000000.0,
+      "depreciation_amortization": 5411000000.0
+    },
+    {
+      "id": 79,
+      "ticker": "META",
+      "period": "2025-09-30",
+      "revenue": 51242000000.0,
+      "gross_profit": 42036000000.0,
+      "operating_income": 20535000000.0,
+      "net_income": 2709000000.0,
+      "ebitda": 26853000000.0,
+      "interest_expense": 227000000.0,
+      "depreciation_amortization": 4963000000.0
+    },
+    {
+      "id": 80,
+      "ticker": "META",
+      "period": "2025-06-30",
+      "revenue": 47516000000.0,
+      "gross_profit": 39025000000.0,
+      "operating_income": 20441000000.0,
+      "net_income": 18337000000.0,
+      "ebitda": 25117000000.0,
+      "interest_expense": 241000000.0,
+      "depreciation_amortization": 4342000000.0
+    },
+    {
+      "id": 81,
+      "ticker": "META",
+      "period": "2025-03-31",
+      "revenue": 42314000000.0,
+      "gross_profit": 34742000000.0,
+      "operating_income": 17555000000.0,
+      "net_income": 16644000000.0,
+      "ebitda": 22522000000.0,
+      "interest_expense": 240000000.0,
+      "depreciation_amortization": 3900000000.0
+    },
+    {
+      "id": 82,
+      "ticker": "META",
+      "period": "2024-12-31",
+      "revenue": 48385000000.0,
+      "gross_profit": 39546000000.0,
+      "operating_income": 23364000000.0,
+      "net_income": 20838000000.0,
+      "ebitda": 28263000000.0,
+      "interest_expense": 251000000.0,
+      "depreciation_amortization": 4460000000.0
+    }
+  ],
+  "balance": [
+    {
+      "id": 87,
+      "ticker": "META",
+      "period": "2025-12-31",
+      "total_assets": 366021000000.0,
+      "total_liabilities": 148778000000.0,
+      "equity": 217243000000.0,
+      "cash": 35873000000.0,
+      "total_debt": 83897000000.0,
+      "current_assets": 108722000000.0,
+      "current_liabilities": 41836000000.0,
+      "inventory": null
+    },
+    {
+      "id": 88,
+      "ticker": "META",
+      "period": "2025-09-30",
+      "total_assets": 303844000000.0,
+      "total_liabilities": 109778000000.0,
+      "equity": 194066000000.0,
+      "cash": 10187000000.0,
+      "total_debt": 51060000000.0,
+      "current_assets": 73118000000.0,
+      "current_liabilities": 36958000000.0,
+      "inventory": null
+    },
+    {
+      "id": 89,
+      "ticker": "META",
+      "period": "2025-06-30",
+      "total_assets": 294744000000.0,
+      "total_liabilities": 99674000000.0,
+      "equity": 195070000000.0,
+      "cash": 12005000000.0,
+      "total_debt": 49560000000.0,
+      "current_assets": 73613000000.0,
+      "current_liabilities": 37305000000.0,
+      "inventory": null
+    },
+    {
+      "id": 90,
+      "ticker": "META",
+      "period": "2025-03-31",
+      "total_assets": 280213000000.0,
+      "total_liabilities": 95184000000.0,
+      "equity": 185029000000.0,
+      "cash": 28750000000.0,
+      "total_debt": 49519000000.0,
+      "current_assets": 90227000000.0,
+      "current_liabilities": 33890000000.0,
+      "inventory": null
+    },
+    {
+      "id": 91,
+      "ticker": "META",
+      "period": "2024-12-31",
+      "total_assets": 276054000000.0,
+      "total_liabilities": 93417000000.0,
+      "equity": 182637000000.0,
+      "cash": 43889000000.0,
+      "total_debt": 49060000000.0,
+      "current_assets": 100045000000.0,
+      "current_liabilities": 33596000000.0,
+      "inventory": null
+    }
+  ],
+  "cashflow": [
+    {
+      "id": 83,
+      "ticker": "META",
+      "period": "2025-12-31",
+      "operating_cf": 36214000000.0,
+      "investing_cf": -34187000000.0,
+      "financing_cf": 25149000000.0,
+      "capex": -21383000000.0,
+      "free_cash_flow": 14831000000.0
+    },
+    {
+      "id": 84,
+      "ticker": "META",
+      "period": "2025-09-30",
+      "operating_cf": 29999000000.0,
+      "investing_cf": -21848000000.0,
+      "financing_cf": -10047000000.0,
+      "capex": -18829000000.0,
+      "free_cash_flow": 11170000000.0
+    },
+    {
+      "id": 85,
+      "ticker": "META",
+      "period": "2025-06-30",
+      "operating_cf": 25561000000.0,
+      "investing_cf": -25958000000.0,
+      "financing_cf": -15977000000.0,
+      "capex": -16538000000.0,
+      "free_cash_flow": 9023000000.0
+    },
+    {
+      "id": 86,
+      "ticker": "META",
+      "period": "2025-03-31",
+      "operating_cf": 24026000000.0,
+      "investing_cf": -20010000000.0,
+      "financing_cf": -19495000000.0,
+      "capex": -12941000000.0,
+      "free_cash_flow": 11085000000.0
+    },
+    {
+      "id": 87,
+      "ticker": "META",
+      "period": "2024-12-31",
+      "operating_cf": 27988000000.0,
+      "investing_cf": -21498000000.0,
+      "financing_cf": -5465000000.0,
+      "capex": -14425000000.0,
+      "free_cash_flow": 13563000000.0
+    }
+  ]
+}

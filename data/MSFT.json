@@ -1,0 +1,210 @@
+{
+  "company": {
+    "ticker": "MSFT",
+    "name": "Microsoft Corporation",
+    "sector": "Technology",
+    "industry": "Software - Infrastructure",
+    "currency": "USD",
+    "exchange": "NMS",
+    "last_updated": "2026-03-17"
+  },
+  "market": {
+    "id": 2,
+    "ticker": "MSFT",
+    "fetched_date": "2026-03-17",
+    "market_cap": 2972579528704.0,
+    "enterprise_value": 3003696283648.0,
+    "shares_outstanding": 7425629076.0,
+    "price": 399.95,
+    "pe_trailing": 24.996876,
+    "pe_forward": 21.224253,
+    "pb_ratio": 7.6014442,
+    "ev_ebitda_info": 17.139,
+    "ev_revenue_info": 9.834,
+    "dividend_yield": 0.91,
+    "beta": 1.108,
+    "week52_high": 555.45,
+    "week52_low": 344.79
+  },
+  "income": [
+    {
+      "id": 6,
+      "ticker": "MSFT",
+      "period": "2025-12-31",
+      "revenue": 81273000000.0,
+      "gross_profit": 55295000000.0,
+      "operating_income": 38275000000.0,
+      "net_income": 38458000000.0,
+      "ebitda": 58180000000.0,
+      "interest_expense": 736000000.0,
+      "depreciation_amortization": 9198000000.0
+    },
+    {
+      "id": 7,
+      "ticker": "MSFT",
+      "period": "2025-09-30",
+      "revenue": 77673000000.0,
+      "gross_profit": 53630000000.0,
+      "operating_income": 37961000000.0,
+      "net_income": 27747000000.0,
+      "ebitda": 48060000000.0,
+      "interest_expense": 698000000.0,
+      "depreciation_amortization": 13061000000.0
+    },
+    {
+      "id": 8,
+      "ticker": "MSFT",
+      "period": "2025-06-30",
+      "revenue": 76441000000.0,
+      "gross_profit": 52427000000.0,
+      "operating_income": 34323000000.0,
+      "net_income": 27233000000.0,
+      "ebitda": 44434000000.0,
+      "interest_expense": 615000000.0,
+      "depreciation_amortization": 11203000000.0
+    },
+    {
+      "id": 9,
+      "ticker": "MSFT",
+      "period": "2025-03-31",
+      "revenue": 70066000000.0,
+      "gross_profit": 48147000000.0,
+      "operating_income": 32000000000.0,
+      "net_income": 25824000000.0,
+      "ebitda": 40711000000.0,
+      "interest_expense": 594000000.0,
+      "depreciation_amortization": 8740000000.0
+    },
+    {
+      "id": 10,
+      "ticker": "MSFT",
+      "period": "2024-12-31",
+      "revenue": 69632000000.0,
+      "gross_profit": 47833000000.0,
+      "operating_income": 31653000000.0,
+      "net_income": 24108000000.0,
+      "ebitda": 35626000000.0,
+      "interest_expense": 594000000.0,
+      "depreciation_amortization": 5667000000.0
+    }
+  ],
+  "balance": [
+    {
+      "id": 7,
+      "ticker": "MSFT",
+      "period": "2025-12-31",
+      "total_assets": 665302000000.0,
+      "total_liabilities": 274427000000.0,
+      "equity": 390875000000.0,
+      "cash": 24296000000.0,
+      "total_debt": 57607000000.0,
+      "current_assets": 180190000000.0,
+      "current_liabilities": 130005000000.0,
+      "inventory": 1059000000.0
+    },
+    {
+      "id": 8,
+      "ticker": "MSFT",
+      "period": "2025-09-30",
+      "total_assets": 636351000000.0,
+      "total_liabilities": 273275000000.0,
+      "equity": 363076000000.0,
+      "cash": 28849000000.0,
+      "total_debt": 60556000000.0,
+      "current_assets": 189066000000.0,
+      "current_liabilities": 134996000000.0,
+      "inventory": 1130000000.0
+    },
+    {
+      "id": 9,
+      "ticker": "MSFT",
+      "period": "2025-06-30",
+      "total_assets": 619003000000.0,
+      "total_liabilities": 275524000000.0,
+      "equity": 343479000000.0,
+      "cash": 30242000000.0,
+      "total_debt": 60588000000.0,
+      "current_assets": 191131000000.0,
+      "current_liabilities": 141218000000.0,
+      "inventory": 938000000.0
+    },
+    {
+      "id": 10,
+      "ticker": "MSFT",
+      "period": "2025-03-31",
+      "total_assets": 562624000000.0,
+      "total_liabilities": 240733000000.0,
+      "equity": 321891000000.0,
+      "cash": 28828000000.0,
+      "total_debt": 60567000000.0,
+      "current_assets": 156644000000.0,
+      "current_liabilities": 114206000000.0,
+      "inventory": 848000000.0
+    },
+    {
+      "id": 11,
+      "ticker": "MSFT",
+      "period": "2024-12-31",
+      "total_assets": 533898000000.0,
+      "total_liabilities": 231203000000.0,
+      "equity": 302695000000.0,
+      "cash": 17482000000.0,
+      "total_debt": 62224000000.0,
+      "current_assets": 147080000000.0,
+      "current_liabilities": 108882000000.0,
+      "inventory": 909000000.0
+    }
+  ],
+  "cashflow": [
+    {
+      "id": 8,
+      "ticker": "MSFT",
+      "period": "2025-12-31",
+      "operating_cf": 35758000000.0,
+      "investing_cf": -22705000000.0,
+      "financing_cf": -17617000000.0,
+      "capex": -29876000000.0,
+      "free_cash_flow": 5882000000.0
+    },
+    {
+      "id": 9,
+      "ticker": "MSFT",
+      "period": "2025-09-30",
+      "operating_cf": 45057000000.0,
+      "investing_cf": -34559000000.0,
+      "financing_cf": -11799000000.0,
+      "capex": -19394000000.0,
+      "free_cash_flow": 25663000000.0
+    },
+    {
+      "id": 10,
+      "ticker": "MSFT",
+      "period": "2025-06-30",
+      "operating_cf": 42647000000.0,
+      "investing_cf": -30572000000.0,
+      "financing_cf": -10844000000.0,
+      "capex": -17079000000.0,
+      "free_cash_flow": 25568000000.0
+    },
+    {
+      "id": 11,
+      "ticker": "MSFT",
+      "period": "2025-03-31",
+      "operating_cf": 37044000000.0,
+      "investing_cf": -12714000000.0,
+      "financing_cf": -13036000000.0,
+      "capex": -16745000000.0,
+      "free_cash_flow": 20299000000.0
+    },
+    {
+      "id": 12,
+      "ticker": "MSFT",
+      "period": "2024-12-31",
+      "operating_cf": 22291000000.0,
+      "investing_cf": -14112000000.0,
+      "financing_cf": -11243000000.0,
+      "capex": -15804000000.0,
+      "free_cash_flow": 6487000000.0
+    }
+  ]
+}
