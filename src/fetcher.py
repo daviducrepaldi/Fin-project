@@ -1,8 +1,16 @@
 import math
+import time
+import requests
 import yfinance as yf
 from src import db
 
 MAX_QUARTERS = 16  # ~4 years
+
+# Shared session with browser-like UA to reduce 429s on shared IPs (e.g. Streamlit Cloud)
+_session = requests.Session()
+_session.headers.update({
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+})
 
 
 def _get_df(ticker_obj, *attrs):
@@ -43,9 +51,21 @@ def _info_val(info, *keys):
     return None
 
 
-def fetch_and_store(ticker: str) -> dict:
+def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
     ticker = ticker.upper()
-    t = yf.Ticker(ticker)
+    last_exc = None
+    for attempt in range(_retries):
+        try:
+            return _fetch(ticker)
+        except Exception as e:
+            last_exc = e
+            if attempt < _retries - 1:
+                time.sleep(2 ** (attempt + 1))   # 2s, 4s
+    raise last_exc
+
+
+def _fetch(ticker: str) -> dict:
+    t = yf.Ticker(ticker, session=_session)
     info = t.info or {}
 
     # ── Company metadata ─────────────────────────────────────────

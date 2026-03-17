@@ -34,7 +34,7 @@ def _qlabel(period_str):
 
 # ── data loading ──────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=86400, show_spinner=False)
 def load_ticker(ticker: str):
     db.init_db()
     data = fetcher.fetch_and_store(ticker)
@@ -86,8 +86,17 @@ for ticker in tickers:
             data, result = load_ticker(ticker)
             all_data[ticker] = data
             all_results[ticker] = result
-        except Exception as e:
-            st.error(f"**{ticker}**: {e}")
+        except Exception:
+            # Rate-limited — fall back to SQLite cache
+            db.init_db()
+            data = db.fetch_all(ticker)
+            if data.get('income'):
+                result = analyzer.compute_ratios(data)
+                all_data[ticker] = data
+                all_results[ticker] = result
+                st.warning(f"**{ticker}**: rate-limited — showing cached data.")
+            else:
+                st.error(f"**{ticker}**: rate-limited and no cached data available. Try again in a moment.")
 
 if not all_results:
     st.stop()
