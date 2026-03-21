@@ -157,6 +157,46 @@ if not active_tickers:
         "YoY growth · Liquidity & leverage · Valuation multiples · Multi-ticker comparison\n\n"
         f"**Pre-loaded:** {', '.join(AVAILABLE_TICKERS)}"
     )
+
+    # ── Decorative ghost preview grid ─────────────────────────────────────────
+    st.caption("Preview — run an analysis to populate")
+
+    _quarters = ["Q1'23", "Q2'23", "Q3'23", "Q4'23", "Q1'24", "Q2'24", "Q3'24", "Q4'24"]
+    _ghost_specs = [
+        ("Revenue (4Y)",   "bar",    "#4C8BE2", [82,91,78,117,96,85,103,143]),
+        ("Net Income",     "bar",    "#34C785", [20,24,19,33,26,22,28,42]),
+        ("Gross Margin %", "line",   "#FF9800", [43,44,42,46,45,44,46,48]),
+        ("EPS Growth",     "line",   "#AB47BC", [8,11,7,15,10,9,13,18]),
+        ("P/E Multiple",   "line",   "#4C8BE2", [28,27,30,25,29,31,28,26]),
+        ("Debt / Equity",  "line",   "#EF5350", [1.8,1.7,1.9,1.6,1.7,1.8,1.5,1.6]),
+    ]
+
+    row1_cols = st.columns(3)
+    row2_cols = st.columns(3)
+    _all_cols  = row1_cols + row2_cols
+
+    for col, (label, kind, color, values) in zip(_all_cols, _ghost_specs):
+        fig = go.Figure()
+        if kind == "bar":
+            fig.add_bar(x=_quarters, y=values, marker_color=color, opacity=0.45)
+        else:
+            fig.add_scatter(
+                x=_quarters, y=values, mode="lines+markers",
+                line=dict(color=color, width=2), opacity=0.45,
+            )
+        fig.update_layout(
+            title=dict(text=label, font=dict(size=13, color="#888")),
+            height=220,
+            margin=dict(t=36, b=8, l=8, r=8),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            xaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
+            yaxis=dict(showticklabels=False, showgrid=False, zeroline=False),
+            showlegend=False,
+        )
+        with col:
+            st.plotly_chart(fig, use_container_width=True)
+
     st.stop()
 
 # Load all tickers
