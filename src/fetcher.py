@@ -1,9 +1,14 @@
 import math
 import time
+from datetime import date
 import yfinance as yf
 from src import db
 
 MAX_QUARTERS = 16  # ~4 years
+
+# Delay constants — Yahoo Finance throttles .info heavily; named here for easy tuning.
+_DELAY_AFTER_INFO = 3        # Extra breathing room after the .info call
+_DELAY_BETWEEN_CALLS = 2     # Pause between each subsequent yfinance DataFrame fetch
 
 # curl_cffi impersonates a real browser (TLS fingerprint + headers) which Yahoo Finance
 # now requires to avoid 429s — especially on shared IPs like Streamlit Cloud.
@@ -43,7 +48,10 @@ def _val(series, *keys):
 
 
 def _info_val(info, *keys):
-    """Safe get from info dict, returning None for missing/NaN/0 (0 is valid for some fields)."""
+    """
+    Safe get from info dict. Returns None for missing keys, None values, or NaN floats.
+    Returns 0.0 for genuine zero values — callers must use `is not None` checks, not truthiness.
+    """
     for key in keys:
         v = info.get(key)
         if v is None:
@@ -56,12 +64,18 @@ def _info_val(info, *keys):
     return None
 
 
-def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
+# ── Public API ────────────────────────────────────────────────────────────────
+
+def fetch_only(ticker: str, _retries: int = 3) -> dict:
+    """
+    Fetch from yfinance and return a data dict. No DB writes, no disk writes.
+    Use this for tickers that should not be persisted locally.
+    """
     ticker = ticker.upper()
     last_exc = None
     for attempt in range(_retries):
         try:
-            return _fetch(ticker)
+            return _fetch_raw(ticker)
         except Exception as e:
             last_exc = e
             if attempt < _retries - 1:
@@ -69,38 +83,66 @@ def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
     raise last_exc
 
 
-def _fetch(ticker: str) -> dict:
+def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
+    """
+    Fetch from yfinance and persist to SQLite. Returns the same data dict as fetch_only.
+    Use this for pre-loaded tickers that should be stored in the DB and JSON files.
+    """
+    ticker = ticker.upper()
+    last_exc = None
+    for attempt in range(_retries):
+        try:
+            return _fetch_and_store(ticker)
+        except Exception as e:
+            last_exc = e
+            if attempt < _retries - 1:
+                time.sleep(2 ** (attempt + 1))   # 2s, 4s
+    raise last_exc
+
+
+# ── Internal helpers ──────────────────────────────────────────────────────────
+
+def _fetch_raw(ticker: str) -> dict:
+    """
+    Core yfinance fetch. Builds and returns the structured data dict without
+    touching the database or filesystem.
+    """
     t = yf.Ticker(ticker, session=_session)
     info = t.info or {}
-    time.sleep(3)                          # pause after info before next call
+    time.sleep(_DELAY_AFTER_INFO)
 
-    # ── Company metadata ─────────────────────────────────────────
-    db.upsert_company(ticker, info)
-
-    # ── Market / valuation data ───────────────────────────────────
-    market_row = {
-        'market_cap':        _info_val(info, 'marketCap'),
-        'enterprise_value':  _info_val(info, 'enterpriseValue'),
-        'shares_outstanding': _info_val(info, 'sharesOutstanding'),
-        'price':             _info_val(info, 'currentPrice', 'regularMarketPrice'),
-        'pe_trailing':       _info_val(info, 'trailingPE'),
-        'pe_forward':        _info_val(info, 'forwardPE'),
-        'pb_ratio':          _info_val(info, 'priceToBook'),
-        'ev_ebitda_info':    _info_val(info, 'enterpriseToEbitda'),
-        'ev_revenue_info':   _info_val(info, 'enterpriseToRevenue'),
-        'dividend_yield':    _info_val(info, 'dividendYield'),
-        'beta':              _info_val(info, 'beta'),
-        'week52_high':       _info_val(info, 'fiftyTwoWeekHigh'),
-        'week52_low':        _info_val(info, 'fiftyTwoWeekLow'),
+    company = {
+        'ticker':       ticker,
+        'name':         info.get('longName') or info.get('shortName', ticker),
+        'sector':       info.get('sector', ''),
+        'industry':     info.get('industry', ''),
+        'currency':     info.get('currency', ''),
+        'exchange':     info.get('exchange', ''),
+        'last_updated': str(date.today()),
     }
-    db.upsert_market_data(ticker, market_row)
+
+    market = {
+        'market_cap':         _info_val(info, 'marketCap'),
+        'enterprise_value':   _info_val(info, 'enterpriseValue'),
+        'shares_outstanding': _info_val(info, 'sharesOutstanding'),
+        'price':              _info_val(info, 'currentPrice', 'regularMarketPrice'),
+        'pe_trailing':        _info_val(info, 'trailingPE'),
+        'pe_forward':         _info_val(info, 'forwardPE'),
+        'pb_ratio':           _info_val(info, 'priceToBook'),
+        'ev_ebitda_info':     _info_val(info, 'enterpriseToEbitda'),
+        'ev_revenue_info':    _info_val(info, 'enterpriseToRevenue'),
+        'dividend_yield':     _info_val(info, 'dividendYield'),
+        'beta':               _info_val(info, 'beta'),
+        'week52_high':        _info_val(info, 'fiftyTwoWeekHigh'),
+        'week52_low':         _info_val(info, 'fiftyTwoWeekLow'),
+    }
 
     # ── Income statement (quarterly) ──────────────────────────────
+    income = []
     inc_df = _get_df(t, 'quarterly_income_stmt', 'quarterly_financials')
-    time.sleep(2)
+    time.sleep(_DELAY_BETWEEN_CALLS)
     if inc_df is not None:
-        cols = list(inc_df.columns)[:MAX_QUARTERS]
-        for col in cols:
+        for col in list(inc_df.columns)[:MAX_QUARTERS]:
             period = str(col.date())
             s = inc_df[col]
             ebitda = _val(s, 'EBITDA', 'Normalized EBITDA')
@@ -110,24 +152,24 @@ def _fetch(ticker: str) -> dict:
             op = _val(s, 'Operating Income', 'EBIT')
             if ebitda is None and op is not None and da is not None:
                 ebitda = op + da
-            row = {
-                'revenue':          _val(s, 'Total Revenue'),
-                'gross_profit':     _val(s, 'Gross Profit'),
-                'operating_income': op,
-                'net_income':       _val(s, 'Net Income', 'Net Income Common Stockholders'),
-                'ebitda':           ebitda,
-                'interest_expense': _val(s, 'Interest Expense',
-                                         'Interest Expense Non Operating'),
+            income.append({
+                'period':                    period,
+                'revenue':                   _val(s, 'Total Revenue'),
+                'gross_profit':              _val(s, 'Gross Profit'),
+                'operating_income':          op,
+                'net_income':                _val(s, 'Net Income', 'Net Income Common Stockholders'),
+                'ebitda':                    ebitda,
+                'interest_expense':          _val(s, 'Interest Expense',
+                                                  'Interest Expense Non Operating'),
                 'depreciation_amortization': da,
-            }
-            db.upsert_income(ticker, period, row)
+            })
 
     # ── Balance sheet (quarterly) ─────────────────────────────────
+    balance = []
     bal_df = _get_df(t, 'quarterly_balance_sheet')
-    time.sleep(2)
+    time.sleep(_DELAY_BETWEEN_CALLS)
     if bal_df is not None:
-        cols = list(bal_df.columns)[:MAX_QUARTERS]
-        for col in cols:
+        for col in list(bal_df.columns)[:MAX_QUARTERS]:
             period = str(col.date())
             s = bal_df[col]
             total_assets = _val(s, 'Total Assets')
@@ -136,7 +178,8 @@ def _fetch(ticker: str) -> dict:
             total_liab = _val(s, 'Total Liabilities Net Minority Interest', 'Total Liab')
             if total_liab is None and total_assets is not None and equity is not None:
                 total_liab = total_assets - equity
-            row = {
+            balance.append({
+                'period':              period,
                 'total_assets':        total_assets,
                 'total_liabilities':   total_liab,
                 'equity':              equity,
@@ -147,15 +190,14 @@ def _fetch(ticker: str) -> dict:
                 'current_assets':      _val(s, 'Current Assets'),
                 'current_liabilities': _val(s, 'Current Liabilities'),
                 'inventory':           _val(s, 'Inventory'),
-            }
-            db.upsert_balance(ticker, period, row)
+            })
 
     # ── Cash flow (quarterly) ─────────────────────────────────────
+    cashflow = []
     cf_df = _get_df(t, 'quarterly_cash_flow', 'quarterly_cashflow')
-    time.sleep(2)
+    time.sleep(_DELAY_BETWEEN_CALLS)
     if cf_df is not None:
-        cols = list(cf_df.columns)[:MAX_QUARTERS]
-        for col in cols:
+        for col in list(cf_df.columns)[:MAX_QUARTERS]:
             period = str(col.date())
             s = cf_df[col]
             op_cf = _val(s, 'Operating Cash Flow',
@@ -164,15 +206,52 @@ def _fetch(ticker: str) -> dict:
             fcf = _val(s, 'Free Cash Flow')
             if fcf is None and op_cf is not None and capex is not None:
                 fcf = op_cf + capex   # capex is negative in yfinance
-            row = {
-                'operating_cf': op_cf,
-                'investing_cf': _val(s, 'Investing Cash Flow',
-                                     'Cash Flow From Continuing Investing Activities'),
-                'financing_cf': _val(s, 'Financing Cash Flow',
-                                     'Cash Flow From Continuing Financing Activities'),
-                'capex':        capex,
+            cashflow.append({
+                'period':         period,
+                'operating_cf':   op_cf,
+                'investing_cf':   _val(s, 'Investing Cash Flow',
+                                       'Cash Flow From Continuing Investing Activities'),
+                'financing_cf':   _val(s, 'Financing Cash Flow',
+                                       'Cash Flow From Continuing Financing Activities'),
+                'capex':          capex,
                 'free_cash_flow': fcf,
-            }
-            db.upsert_cashflow(ticker, period, row)
+            })
 
-    return db.fetch_all(ticker)
+    return {
+        'company':  company,
+        'market':   market,
+        'income':   income,
+        'balance':  balance,
+        'cashflow': cashflow,
+    }
+
+
+def _fetch_and_store(ticker: str) -> dict:
+    """Fetch via _fetch_raw then persist everything to SQLite in one transaction."""
+    data = _fetch_raw(ticker)
+
+    conn = db.get_conn()
+    try:
+        # upsert_company expects yfinance-style info keys; adapt from our structured dict
+        db.upsert_company(ticker, {
+            'longName': data['company']['name'],
+            'sector':   data['company']['sector'],
+            'industry': data['company']['industry'],
+            'currency': data['company']['currency'],
+            'exchange': data['company']['exchange'],
+        }, conn=conn)
+        db.upsert_market_data(ticker, data['market'], conn=conn)
+        for row in data['income']:
+            db.upsert_income(ticker, row['period'], row, conn=conn)
+        for row in data['balance']:
+            db.upsert_balance(ticker, row['period'], row, conn=conn)
+        for row in data['cashflow']:
+            db.upsert_cashflow(ticker, row['period'], row, conn=conn)
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    return data

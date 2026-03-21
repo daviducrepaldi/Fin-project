@@ -75,7 +75,7 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
     if force_refresh:
         try:
             with st.spinner(f"Fetching live data for {ticker}…"):
-                data = fetcher.fetch_and_store(ticker)
+                data = fetcher.fetch_and_store(ticker) if ticker in AVAILABLE_TICKERS else fetcher.fetch_only(ticker)
             result = analyzer.compute_ratios(data)
             cache[ticker] = (data, result)
             if ticker in AVAILABLE_TICKERS:
@@ -84,7 +84,8 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
                 except Exception:
                     pass   # Cloud filesystem is read-only — that's fine
             return (data, result), None
-        except Exception:
+        except Exception as e:
+            print(f"FETCH ERROR [force_refresh] {ticker}: {type(e).__name__}: {e}")
             data = _load_file(ticker)
             if data:
                 result = analyzer.compute_ratios(data)
@@ -101,14 +102,15 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
         cache[ticker] = (data, result)
         return (data, result), None
 
-    # Not in static data — try live fetch (session cache only, not saved to disk)
+    # Not in static data — live fetch via fetch_only (no DB, no disk write)
     try:
         with st.spinner(f"Fetching live data for {ticker}…"):
-            data = fetcher.fetch_and_store(ticker)
+            data = fetcher.fetch_only(ticker)
         result = analyzer.compute_ratios(data)
         cache[ticker] = (data, result)
         return (data, result), None
-    except Exception:
+    except Exception as e:
+        print(f"FETCH ERROR [analyze] {ticker}: {type(e).__name__}: {e}")
         available = '  ·  '.join(AVAILABLE_TICKERS)
         return None, (
             f"Could not fetch **{ticker}** — Yahoo Finance may be rate-limiting or the ticker is invalid. "
