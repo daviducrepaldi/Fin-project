@@ -6,21 +6,18 @@
     "industry": "Auto Manufacturers",
     "currency": "USD",
     "exchange": "NMS",
-    "last_updated": "2026-03-17"
+    "last_updated": "2026-03-20"
   },
   "market": {
-    "id": 4,
-    "ticker": "TSLA",
-    "fetched_date": "2026-03-17",
-    "market_cap": 1484311887872.0,
-    "enterprise_value": 1455700049920.0,
+    "market_cap": 1380744822784.0,
+    "enterprise_value": 1352132853760.0,
     "shares_outstanding": 3752431984.0,
-    "price": 395.56,
-    "pe_trailing": 369.68222,
-    "pe_forward": 140.74715,
-    "pb_ratio": 18.064575,
-    "ev_ebitda_info": 138.598,
-    "ev_revenue_info": 15.351,
+    "price": 367.96,
+    "pe_trailing": 343.88782,
+    "pe_forward": 130.92657,
+    "pb_ratio": 16.804129,
+    "ev_ebitda_info": 128.738,
+    "ev_revenue_info": 14.259,
     "dividend_yield": null,
     "beta": 1.926,
     "week52_high": 498.83,
@@ -28,8 +25,6 @@
   },
   "income": [
     {
-      "id": 18,
-      "ticker": "TSLA",
       "period": "2025-12-31",
       "revenue": 24901000000.0,
       "gross_profit": 5009000000.0,
@@ -40,8 +35,6 @@
       "depreciation_amortization": 1643000000.0
     },
     {
-      "id": 19,
-      "ticker": "TSLA",
       "period": "2025-09-30",
       "revenue": 28095000000.0,
       "gross_profit": 5054000000.0,
@@ -52,8 +45,6 @@
       "depreciation_amortization": 1625000000.0
     },
     {
-      "id": 20,
-      "ticker": "TSLA",
       "period": "2025-06-30",
       "revenue": 22496000000.0,
       "gross_profit": 3878000000.0,
@@ -64,8 +55,6 @@
       "depreciation_amortization": 1433000000.0
     },
     {
-      "id": 21,
-      "ticker": "TSLA",
       "period": "2025-03-31",
       "revenue": 19335000000.0,
       "gross_profit": 3153000000.0,
@@ -76,8 +65,6 @@
       "depreciation_amortization": 1447000000.0
     },
     {
-      "id": 22,
-      "ticker": "TSLA",
       "period": "2024-12-31",
       "revenue": 25707000000.0,
       "gross_profit": 4179000000.0,
@@ -86,12 +73,30 @@
       "ebitda": 4358000000.0,
       "interest_expense": 96000000.0,
       "depreciation_amortization": 1496000000.0
+    },
+    {
+      "period": "2024-09-30",
+      "revenue": null,
+      "gross_profit": null,
+      "operating_income": null,
+      "net_income": null,
+      "ebitda": null,
+      "interest_expense": null,
+      "depreciation_amortization": null
+    },
+    {
+      "period": "2024-06-30",
+      "revenue": null,
+      "gross_profit": null,
+      "operating_income": null,
+      "net_income": null,
+      "ebitda": null,
+      "interest_expense": null,
+      "depreciation_amortization": null
     }
   ],
   "balance": [
     {
-      "id": 21,
-      "ticker": "TSLA",
       "period": "2025-12-31",
       "total_assets": 137806000000.0,
       "total_liabilities": 54941000000.0,
@@ -103,8 +108,6 @@
       "inventory": 12392000000.0
     },
     {
-      "id": 22,
-      "ticker": "TSLA",
       "period": "2025-09-30",
       "total_assets": 133735000000.0,
       "total_liabilities": 53019000000.0,
@@ -116,8 +119,6 @@
       "inventory": 12276000000.0
     },
     {
-      "id": 23,
-      "ticker": "TSLA",
       "period": "2025-06-30",
       "total_assets": 128567000000.0,
       "total_liabilities": 50495000000.0,
@@ -129,8 +130,6 @@
       "inventory": 14570000000.0
     },
     {
-      "id": 24,
-      "ticker": "TSLA",
       "period": "2025-03-31",
       "total_assets": 125111000000.0,
       "total_liabilities": 49693000000.0,
@@ -142,8 +141,6 @@
       "inventory": 13706000000.0
     },
     {
-      "id": 25,
-      "ticker": "TSLA",
       "period": "2024-12-31",
       "total_assets": 122070000000.0,
       "total_liabilities": 48390000000.0,
@@ -153,12 +150,32 @@
       "current_assets": 58360000000.0,
       "current_liabilities": 28821000000.0,
       "inventory": 12017000000.0
+    },
+    {
+      "period": "2024-09-30",
+      "total_assets": null,
+      "total_liabilities": null,
+      "equity": null,
+      "cash": null,
+      "total_debt": null,
+      "current_assets": null,
+      "current_liabilities": null,
+      "inventory": null
+    },
+    {
+      "period": "2024-06-30",
+      "total_assets": null,
+      "total_liabilities": null,
+      "equity": null,
+      "cash": null,
+      "total_debt": null,
+      "current_assets": null,
+      "current_liabilities": null,
+      "inventory": null
     }
   ],
   "cashflow": [
     {
-      "id": 20,
-      "ticker": "TSLA",
       "period": "2025-12-31",
       "operating_cf": 3813000000.0,
       "investing_cf": -6528000000.0,
@@ -167,8 +184,6 @@
       "free_cash_flow": 1420000000.0
     },
     {
-      "id": 21,
-      "ticker": "TSLA",
       "period": "2025-09-30",
       "operating_cf": 6238000000.0,
       "investing_cf": -4355000000.0,
@@ -177,8 +192,6 @@
       "free_cash_flow": 3990000000.0
     },
     {
-      "id": 22,
-      "ticker": "TSLA",
       "period": "2025-06-30",
       "operating_cf": 2540000000.0,
       "investing_cf": -2944000000.0,
@@ -187,8 +200,6 @@
       "free_cash_flow": 146000000.0
     },
     {
-      "id": 23,
-      "ticker": "TSLA",
       "period": "2025-03-31",
       "operating_cf": 2156000000.0,
       "investing_cf": -1651000000.0,
@@ -197,14 +208,20 @@
       "free_cash_flow": 664000000.0
     },
     {
-      "id": 24,
-      "ticker": "TSLA",
       "period": "2024-12-31",
       "operating_cf": 4814000000.0,
       "investing_cf": -7603000000.0,
       "financing_cf": 985000000.0,
       "capex": -2780000000.0,
       "free_cash_flow": 2034000000.0
+    },
+    {
+      "period": "2024-09-30",
+      "operating_cf": null,
+      "investing_cf": null,
+      "financing_cf": null,
+      "capex": null,
+      "free_cash_flow": null
     }
   ]
 }

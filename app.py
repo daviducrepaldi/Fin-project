@@ -1,14 +1,15 @@
 import json
-import math
 import os
 import time
+from pathlib import Path
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 from src import fetcher, analyzer
+from src.utils import period_to_quarter_label, clean_for_json
 
 AVAILABLE_TICKERS = ['AAPL', 'AMZN', 'GOOGL', 'JPM', 'META', 'MSFT', 'NVDA', 'TSLA']
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+DATA_DIR = Path(__file__).parent / 'data'
 
 st.set_page_config(
     page_title="Financial Analyzer",
@@ -32,18 +33,14 @@ def _fmt_x(v, dec=1):
 def _fmt_pct(v):
     return f"{v:.1f}%" if v is not None else "N/A"
 
-def _qlabel(period_str):
-    """'2024-09-28' → \"Q3'24\" """
-    y = period_str[2:4]
-    m = int(period_str[5:7])
-    return f"Q{(m-1)//3+1}'{y}"
+_qlabel = period_to_quarter_label
 
 
 # ── static data loading ───────────────────────────────────────────────────────
 
 def _load_file(ticker: str):
     """Load pre-fetched data from data/{TICKER}.json. Returns None if not found."""
-    path = os.path.join(DATA_DIR, f'{ticker}.json')
+    path = DATA_DIR / f'{ticker}.json'
     try:
         with open(path) as f:
             return json.load(f)
@@ -53,15 +50,9 @@ def _load_file(ticker: str):
 
 def _save_file(ticker: str, data: dict):
     """Write data back to data/{TICKER}.json (works locally; silent no-op on Cloud)."""
-    def _clean(obj):
-        if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
-            return None
-        if isinstance(obj, dict):  return {k: _clean(v) for k, v in obj.items()}
-        if isinstance(obj, list):  return [_clean(v) for v in obj]
-        return obj
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(os.path.join(DATA_DIR, f'{ticker}.json'), 'w') as f:
-        json.dump(_clean(data), f, indent=2)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with open(DATA_DIR / f'{ticker}.json', 'w') as f:
+        json.dump(clean_for_json(data), f, indent=2)
 
 
 def _get_ticker(ticker: str, force_refresh: bool = False):
@@ -89,13 +80,13 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
             except Exception:
                 pass   # Cloud filesystem is read-only — that's fine
             return (data, result), None
-        except Exception as e:
+        except Exception:
             data = _load_file(ticker)
             if data:
                 result = analyzer.compute_ratios(data)
                 cache[ticker] = (data, result)
-                return (data, result), f"Live fetch failed — showing static data for **{ticker}**."
-            return None, f"Live fetch failed and **{ticker}** has no static data."
+                return (data, result), None   # silent fallback to pre-fetched JSON
+            return None, f"Could not load **{ticker}**: live fetch failed and no pre-fetched data found in `data/`. Run `python prefetch_data.py --tickers {ticker}` to populate it."
 
     # Default: load from static file
     data = _load_file(ticker)
@@ -134,7 +125,11 @@ with st.sidebar:
         "\n\nOther tickers require a live fetch via the Refresh button."
     )
 
+MAX_TICKERS = 5
 tickers = [t.strip().upper() for t in tickers_input.split() if t.strip()]
+if len(tickers) > MAX_TICKERS:
+    st.warning(f"Showing first {MAX_TICKERS} tickers only.")
+    tickers = tickers[:MAX_TICKERS]
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -216,7 +211,7 @@ for tab_idx, ticker in enumerate(all_results.keys()):
         if market:
             c1, c2, c3, c4, c5, c6 = st.columns(6)
             c1.metric("Market Cap",    _fmt_large(market.get("market_cap")))
-            c2.metric("Price",         f"${market.get('price'):.2f}" if market.get("price") else "N/A")
+            c2.metric("Price",         f"${market.get('price'):.2f}" if market.get("price") is not None else "N/A")
             c3.metric("P/E (TTM)",     _fmt_x(market.get("pe_trailing")))
             c4.metric("P/E (Fwd)",     _fmt_x(market.get("pe_forward")))
             c5.metric("EV/EBITDA",     _fmt_x(market.get("ev_ebitda_info")))
@@ -459,13 +454,13 @@ if len(all_results) > 1:
         rows = []
         sections = [
             ("Market Cap",         lambda t: _fmt_large(all_results[t]["market"].get("market_cap"))),
-            ("Price",              lambda t: f"${all_results[t]['market'].get('price'):.2f}" if all_results[t]['market'].get('price') else "N/A"),
+            ("Price",              lambda t: f"${all_results[t]['market'].get('price'):.2f}" if all_results[t]['market'].get('price') is not None else "N/A"),
             ("P/E (TTM)",          lambda t: _fmt_x(all_results[t]["market"].get("pe_trailing"))),
             ("P/E (Fwd)",          lambda t: _fmt_x(all_results[t]["market"].get("pe_forward"))),
             ("EV/EBITDA (info)",   lambda t: _fmt_x(all_results[t]["market"].get("ev_ebitda_info"))),
             ("EV/EBITDA (calc)",   lambda t: _fmt_x(all_results[t]["ttm"].get("ev_ebitda_calc"))),
             ("P/B",                lambda t: _fmt_x(all_results[t]["market"].get("pb_ratio"))),
-            ("Beta",               lambda t: f"{all_results[t]['market'].get('beta'):.2f}" if all_results[t]['market'].get('beta') else "N/A"),
+            ("Beta",               lambda t: f"{all_results[t]['market'].get('beta'):.2f}" if all_results[t]['market'].get('beta') is not None else "N/A"),
             ("---",                None),
             ("Revenue (TTM)",      lambda t: _fmt_large(all_results[t]["ttm"].get("revenue"))),
             ("Net Income (TTM)",   lambda t: _fmt_large(all_results[t]["ttm"].get("net_income"))),
@@ -478,9 +473,9 @@ if len(all_results) > 1:
             ("ROE %",              lambda t: _fmt_pct(all_results[t]["ttm"].get("roe"))),
             ("ROA %",              lambda t: _fmt_pct(all_results[t]["ttm"].get("roa"))),
             ("---",                None),
-            ("Current Ratio",      lambda t: f"{all_results[t]['ttm'].get('current_ratio'):.2f}" if all_results[t]['ttm'].get('current_ratio') else "N/A"),
-            ("Quick Ratio",        lambda t: f"{all_results[t]['ttm'].get('quick_ratio'):.2f}" if all_results[t]['ttm'].get('quick_ratio') else "N/A"),
-            ("D/E Ratio",          lambda t: f"{all_results[t]['ttm'].get('debt_to_equity'):.2f}" if all_results[t]['ttm'].get('debt_to_equity') else "N/A"),
+            ("Current Ratio",      lambda t: f"{all_results[t]['ttm'].get('current_ratio'):.2f}" if all_results[t]['ttm'].get('current_ratio') is not None else "N/A"),
+            ("Quick Ratio",        lambda t: f"{all_results[t]['ttm'].get('quick_ratio'):.2f}" if all_results[t]['ttm'].get('quick_ratio') is not None else "N/A"),
+            ("D/E Ratio",          lambda t: f"{all_results[t]['ttm'].get('debt_to_equity'):.2f}" if all_results[t]['ttm'].get('debt_to_equity') is not None else "N/A"),
             ("Interest Coverage",  lambda t: _fmt_x(all_results[t]["ttm"].get("interest_coverage"))),
         ]
         for label, fn in sections:
