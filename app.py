@@ -5,8 +5,10 @@ from pathlib import Path
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-from src import fetcher, analyzer
+from src import db, fetcher, analyzer
 from src.utils import period_to_quarter_label, clean_for_json
+
+db.init_db()   # ensure SQLite tables exist (no-op if already created)
 
 AVAILABLE_TICKERS = ['AAPL', 'AMZN', 'GOOGL', 'JPM', 'META', 'MSFT', 'NVDA', 'TSLA']
 DATA_DIR = Path(__file__).parent / 'data'
@@ -88,7 +90,9 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
                 result = analyzer.compute_ratios(data)
                 cache[ticker] = (data, result)
                 return (data, result), None   # silent fallback to pre-fetched JSON
-            return None, f"Could not load **{ticker}**: live fetch failed and no pre-fetched data found in `data/`. Run `python prefetch_data.py --tickers {ticker}` to populate it."
+            if ticker in AVAILABLE_TICKERS:
+                return None, f"Live fetch failed for **{ticker}** and no cached data found. Run `python prefetch_data.py --tickers {ticker}` to rebuild it."
+            return None, f"Live fetch failed for **{ticker}** — Yahoo Finance may be rate-limiting. Wait a moment and try again."
 
     # Default: load from static file
     data = _load_file(ticker)
@@ -107,8 +111,8 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
     except Exception:
         available = '  ·  '.join(AVAILABLE_TICKERS)
         return None, (
-            f"Could not fetch **{ticker}**. Check the ticker symbol is valid.\n\n"
-            f"Pre-loaded (instant): {available}"
+            f"Could not fetch **{ticker}** — Yahoo Finance may be rate-limiting or the ticker is invalid. "
+            f"Wait a moment and try again.\n\nPre-loaded (instant): {available}"
         )
 
 
