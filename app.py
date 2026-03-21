@@ -60,9 +60,10 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
     Returns ((data, result), warning_msg).
     Priority:
       • session_state cache (skipped if force_refresh)
-      • force_refresh=True → live yfinance, falls back to static on failure
-      • default → data/{TICKER}.json
-      • not found → friendly error listing available tickers
+      • force_refresh=True  → live yfinance; saves to disk only for AVAILABLE_TICKERS
+      • static file exists  → load data/{TICKER}.json
+      • static file missing → live yfinance fetch (any ticker, never saved to disk)
+      • all fail            → error
     """
     cache = st.session_state.setdefault('ticker_cache', {})
 
@@ -75,10 +76,11 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
                 data = fetcher.fetch_and_store(ticker)
             result = analyzer.compute_ratios(data)
             cache[ticker] = (data, result)
-            try:
-                _save_file(ticker, data)
-            except Exception:
-                pass   # Cloud filesystem is read-only — that's fine
+            if ticker in AVAILABLE_TICKERS:
+                try:
+                    _save_file(ticker, data)
+                except Exception:
+                    pass   # Cloud filesystem is read-only — that's fine
             return (data, result), None
         except Exception:
             data = _load_file(ticker)
@@ -95,8 +97,19 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
         cache[ticker] = (data, result)
         return (data, result), None
 
-    available = '  ·  '.join(AVAILABLE_TICKERS)
-    return None, f"**{ticker}** is not in the local dataset.\n\nAvailable tickers: {available}"
+    # Not in static data — try live fetch (session cache only, not saved to disk)
+    try:
+        with st.spinner(f"Fetching live data for {ticker}…"):
+            data = fetcher.fetch_and_store(ticker)
+        result = analyzer.compute_ratios(data)
+        cache[ticker] = (data, result)
+        return (data, result), None
+    except Exception:
+        available = '  ·  '.join(AVAILABLE_TICKERS)
+        return None, (
+            f"Could not fetch **{ticker}**. Check the ticker symbol is valid.\n\n"
+            f"Pre-loaded (instant): {available}"
+        )
 
 
 # ── sidebar ───────────────────────────────────────────────────────────────────
@@ -121,8 +134,8 @@ with st.sidebar:
 
     st.divider()
     st.caption(
-        "**Pre-loaded tickers:**\n" + "  ·  ".join(AVAILABLE_TICKERS) +
-        "\n\nOther tickers require a live fetch via the Refresh button."
+        "**Pre-loaded (instant):**\n" + "  ·  ".join(AVAILABLE_TICKERS) +
+        "\n\nAny valid ticker works — others are fetched live and not stored locally."
     )
 
 MAX_TICKERS = 5
