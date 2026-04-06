@@ -300,8 +300,8 @@ for tab_idx, ticker in enumerate(all_results.keys()):
                     ]
                     st.dataframe(pd.DataFrame(_rows), use_container_width=True, hide_index=True)
                     st.caption(_rating["disclaimer"])
-        except Exception:
-            pass  # rating is additive — never crash the main UI
+        except Exception as _e:
+            st.warning(f"Rating error: {_e}")
 
         if not quarters:
             st.info("No quarterly data available for this ticker.")
