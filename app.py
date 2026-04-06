@@ -278,6 +278,31 @@ for tab_idx, ticker in enumerate(all_results.keys()):
 
         st.divider()
 
+        # ── rating banner ──────────────────────────────────────────────────────
+        try:
+            _rating = analyzer.compute_rating(result)
+            if _rating and _rating.get("rating") != "N/A":
+                _r, _score = _rating["rating"], _rating["score"]
+                _msg = f"**{_r}**  —  Score: {_score:.1f} / 100"
+                if _rating.get("data_quality") == "minimal":
+                    _msg += "  _(limited data — treat with caution)_"
+                if _r == "BUY":
+                    st.success(_msg)
+                elif _r == "HOLD":
+                    st.warning(_msg)
+                else:
+                    st.error(_msg)
+                with st.expander("Score breakdown"):
+                    _rows = [
+                        {"Component": v["label"], "Score": f"{v['score']:.1f}",
+                         "Max": str(v["max"]), "%": f"{v['score'] / v['max'] * 100:.0f}%"}
+                        for v in _rating["breakdown"].values()
+                    ]
+                    st.dataframe(pd.DataFrame(_rows), use_container_width=True, hide_index=True)
+                    st.caption(_rating["disclaimer"])
+        except Exception:
+            pass  # rating is additive — never crash the main UI
+
         if not quarters:
             st.info("No quarterly data available for this ticker.")
             continue

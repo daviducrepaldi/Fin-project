@@ -22,6 +22,12 @@ def _div(a, b):
     return a / b
 
 
+def _round_ratio(a, b, ndigits=2):
+    """Compute a/b and round. Returns None if either operand is None or b is 0."""
+    v = _div(a, b)
+    return round(v, ndigits) if v is not None else None
+
+
 def _pct(val, decimals=1):
     return round(val * 100, decimals) if val is not None else None
 
@@ -109,10 +115,10 @@ def _ratios_for_quarter(inc, bal, cf):
         'roe':  _pct(_div(ni, equity)),
         'roa':  _pct(_div(ni, assets)),
         # Liquidity
-        'current_ratio': round(_div(cur_a, cur_l), 2) if _div(cur_a, cur_l) else None,
-        'quick_ratio':   round(_div(quick_assets, cur_l), 2) if _div(quick_assets, cur_l) else None,
+        'current_ratio': _round_ratio(cur_a, cur_l),
+        'quick_ratio':   _round_ratio(quick_assets, cur_l),
         # Leverage
-        'debt_to_equity':   round(_div(debt, equity), 2) if _div(debt, equity) else None,
+        'debt_to_equity':   _round_ratio(debt, equity),
         'net_debt':         net_debt,
         'interest_coverage': int_cov,
     }
@@ -156,8 +162,8 @@ def _ttm_ratios(income_rows, balance_rows, cashflow_rows, market):
 
     # Calculated EV/EBITDA
     ev = market.get('enterprise_value')
-    ev_ebitda_calc = round(_div(ev, ttm_ebitda), 2) if (ev and ttm_ebitda) else None
-    ev_rev_calc    = round(_div(ev, ttm_rev), 2) if (ev and ttm_rev) else None
+    ev_ebitda_calc = _round_ratio(ev, ttm_ebitda)
+    ev_rev_calc    = _round_ratio(ev, ttm_rev)
 
     return {
         'revenue':      ttm_rev,
@@ -175,10 +181,10 @@ def _ttm_ratios(income_rows, balance_rows, cashflow_rows, market):
         'roe': _pct(_div(ttm_ni, equity)),
         'roa': _pct(_div(ttm_ni, assets)),
         # Liquidity (latest quarter)
-        'current_ratio': round(_div(cur_a, cur_l), 2) if _div(cur_a, cur_l) else None,
-        'quick_ratio':   round(_div(quick_assets, cur_l), 2) if _div(quick_assets, cur_l) else None,
+        'current_ratio': _round_ratio(cur_a, cur_l),
+        'quick_ratio':   _round_ratio(quick_assets, cur_l),
         # Leverage (latest quarter)
-        'debt_to_equity':    round(_div(debt, equity), 2) if _div(debt, equity) else None,
+        'debt_to_equity':    _round_ratio(debt, equity),
         'net_debt':          net_debt,
         'interest_coverage': int_cov,
         # Valuation (calculated)
@@ -257,4 +263,157 @@ def compute_ratios(data: dict) -> dict:
         'ttm':      ttm,
         'market':   market,
         'company':  data.get('company', {}),
+    }
+
+
+# ── rating helpers ────────────────────────────────────────────────────────────
+
+def _score_bracket(value, brackets):
+    """Lower-is-better scoring. brackets: [(threshold, pts)] sorted ascending by threshold."""
+    for threshold, pts in brackets:
+        if value <= threshold:
+            return pts
+    return 0
+
+
+def _score_bracket_high(value, brackets):
+    """Higher-is-better scoring. brackets: [(threshold, pts)] sorted descending by threshold."""
+    for threshold, pts in brackets:
+        if value >= threshold:
+            return pts
+    return 0
+
+
+# ── Buy/Hold/Sell rating ──────────────────────────────────────────────────────
+
+def compute_rating(result: dict) -> dict:
+    """
+    Compute a Buy/Hold/Sell rating from an already-computed result dict.
+
+    Scoring model (100 pts total):
+      Valuation     30 pts  — P/E trailing (12), EV/EBITDA (10), P/B (8)
+      Profitability 30 pts  — Net Margin TTM (15), ROE TTM (15)
+      Growth        25 pts  — Revenue YoY % (most recent quarter with data)
+      Health        15 pts  — Current Ratio (8), Debt/Equity (7)
+
+    Thresholds: score >= 65 → BUY, >= 40 → HOLD, < 40 → SELL
+    Missing inputs are skipped and the component score is proportionally rescaled.
+    """
+    _DISCLAIMER = "Quantitative signal for educational purposes only. Not financial advice."
+
+    if not result:
+        return {"rating": "N/A", "score": None, "breakdown": {}, "disclaimer": _DISCLAIMER, "data_quality": "none"}
+
+    market = result.get("market") or {}
+    ttm    = result.get("ttm") or {}
+    trends = result.get("trends") or []
+
+    # ── Valuation (30 pts: P/E=12, EV/EBITDA=10, P/B=8) ──────────────────────
+    pe = market.get("pe_trailing")
+    ev = market.get("ev_ebitda_info")
+    pb = market.get("pb_ratio")
+
+    pe_score = ev_score = pb_score = None
+    if pe is not None:
+        pe_score = 0 if pe < 0 else _score_bracket(pe, [(12, 12), (18, 10), (25, 7), (35, 4), (50, 2)])
+    if ev is not None and ev >= 0:
+        ev_score = _score_bracket(ev, [(8, 10), (12, 8), (18, 5), (25, 2)])
+    if pb is not None and pb >= 0:
+        pb_score = _score_bracket(pb, [(1.5, 8), (3, 6), (5, 3), (10, 1)])
+
+    val_raw = val_avail = 0
+    for score, max_pts in [(pe_score, 12), (ev_score, 10), (pb_score, 8)]:
+        if score is not None:
+            val_raw   += score
+            val_avail += max_pts
+    val_component = (val_raw / val_avail * 30) if val_avail > 0 else None
+
+    # ── Profitability (30 pts: net_margin=15, roe=15) ─────────────────────────
+    nm  = ttm.get("net_margin")
+    roe = ttm.get("roe")
+
+    nm_score = roe_score = None
+    if nm is not None:
+        nm_score = 0 if nm < 0 else _score_bracket_high(nm, [(25, 15), (15, 12), (8, 8), (3, 4), (0, 1)])
+    if roe is not None:
+        roe_score = 0 if roe < 0 else _score_bracket_high(roe, [(30, 15), (20, 12), (12, 8), (5, 4), (0, 1)])
+
+    prof_raw = prof_avail = 0
+    for score, max_pts in [(nm_score, 15), (roe_score, 15)]:
+        if score is not None:
+            prof_raw   += score
+            prof_avail += max_pts
+    prof_component = (prof_raw / prof_avail * 30) if prof_avail > 0 else None
+
+    # ── Growth (25 pts: revenue YoY %) ────────────────────────────────────────
+    rev_yoy = None
+    for t in trends:
+        if t is not None and t.get("rev_yoy_pct") is not None:
+            rev_yoy = t["rev_yoy_pct"]
+            break
+
+    if rev_yoy is None:
+        growth_component = 12.0   # neutral — no data, don't penalise
+    elif rev_yoy >= 25:  growth_component = 25.0
+    elif rev_yoy >= 15:  growth_component = 20.0
+    elif rev_yoy >= 8:   growth_component = 15.0
+    elif rev_yoy >= 3:   growth_component = 10.0
+    elif rev_yoy >= 0:   growth_component = 6.0
+    elif rev_yoy >= -5:  growth_component = 3.0
+    else:                growth_component = 0.0
+
+    # ── Financial Health (15 pts: current_ratio=8, d/e=7) ────────────────────
+    cr = ttm.get("current_ratio")
+    de = ttm.get("debt_to_equity")
+
+    cr_score = de_score = None
+    if cr is not None:
+        cr_score = _score_bracket_high(cr, [(2, 8), (1.5, 6), (1, 3)])  # below 1 → 0
+    if de is not None:
+        de_score = 0 if de < 0 else _score_bracket(de, [(0.3, 7), (0.8, 5), (1.5, 3), (3.0, 1)])
+
+    health_raw = health_avail = 0
+    for score, max_pts in [(cr_score, 8), (de_score, 7)]:
+        if score is not None:
+            health_raw   += score
+            health_avail += max_pts
+    health_component = (health_raw / health_avail * 15) if health_avail > 0 else None
+
+    # ── Aggregate ─────────────────────────────────────────────────────────────
+    _components = [
+        ("valuation",     val_component,    30),
+        ("profitability", prof_component,   30),
+        ("growth",        growth_component, 25),
+        ("health",        health_component, 15),
+    ]
+
+    none_count  = sum(1 for _, v, _ in _components if v is None)
+    total_score = sum(v if v is not None else max_pts * 0.5 for _, v, max_pts in _components)
+
+    if   none_count == 0: data_quality = "full"
+    elif none_count <= 2: data_quality = "partial"
+    elif none_count == 3: data_quality = "minimal"
+    else:                 data_quality = "none"
+
+    if data_quality == "none":
+        return {"rating": "N/A", "score": None, "breakdown": {}, "disclaimer": _DISCLAIMER, "data_quality": "none"}
+
+    total_score = round(total_score, 1)
+    if   total_score >= 65: rating = "BUY"
+    elif total_score >= 40: rating = "HOLD"
+    else:                   rating = "SELL"
+
+    breakdown = {
+        "valuation":     {"score": round(val_component    if val_component    is not None else 15.0, 1), "max": 30, "label": "Valuation"},
+        "profitability": {"score": round(prof_component   if prof_component   is not None else 15.0, 1), "max": 30, "label": "Profitability"},
+        "growth":        {"score": round(growth_component,                                             1), "max": 25, "label": "Growth"},
+        "health":        {"score": round(health_component if health_component is not None else 7.5,   1), "max": 15, "label": "Financial Health"},
+    }
+
+    return {
+        "rating":       rating,
+        "score":        total_score,
+        "breakdown":    breakdown,
+        "disclaimer":   _DISCLAIMER,
+        "data_quality": data_quality,
     }
