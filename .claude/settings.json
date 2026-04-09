@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "postToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "command": "python3 .claude/hooks/py_syntax_check.py"
+      }
+    ]
+  }
+}
