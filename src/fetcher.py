@@ -11,6 +11,18 @@ _DELAY_AFTER_INFO = 5        # Extra breathing room after the info calls
 _DELAY_BETWEEN_CALLS = 3     # Pause between each subsequent financial statement fetch
 _RETRY_DELAY_BASE = 4        # Base for fetch_only (UI path): 4s, 8s between retries
 
+# ── Module-level Yahoo Finance session ────────────────────────────────────────
+# Created once when this module is first imported (i.e. when Streamlit starts).
+# Visiting finance.yahoo.com sets cookies; the crumb is then fetched once inside
+# Ticker.__init__ and reused for the lifetime of the session — instead of
+# re-authenticating on every Ticker() call, which is what causes "Invalid Crumb".
+try:
+    from curl_cffi import requests as _curl_requests
+    _YF_SESSION = _curl_requests.Session(impersonate="chrome")
+    _YF_SESSION.get("https://finance.yahoo.com", timeout=15)
+except Exception:
+    _YF_SESSION = None  # fall back to yahooquery's default per-call session
+
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
@@ -57,7 +69,7 @@ def _fetch_raw(ticker: str) -> dict:
     Core yahooquery fetch. Builds and returns the structured data dict without
     touching the database or filesystem.
     """
-    t = Ticker(ticker, timeout=15)
+    t = Ticker(ticker, timeout=15, session=_YF_SESSION)
 
     # ── Company & market data ─────────────────────────────────────
     # yahooquery returns a string (error message) instead of a dict on failure;
