@@ -7,14 +7,14 @@ from src import db
 MAX_QUARTERS = 16  # ~4 years
 
 # Delay constants — Yahoo Finance throttles .info heavily; named here for easy tuning.
-_DELAY_AFTER_INFO = 3        # Extra breathing room after the .info call
-_DELAY_BETWEEN_CALLS = 2     # Pause between each subsequent yfinance DataFrame fetch
+_DELAY_AFTER_INFO = 5        # Extra breathing room after the .info call
+_DELAY_BETWEEN_CALLS = 3     # Pause between each subsequent yfinance DataFrame fetch
 
 # curl_cffi impersonates a real browser (TLS fingerprint + headers) which Yahoo Finance
 # now requires to avoid 429s — especially on shared IPs like Streamlit Cloud.
 try:
     from curl_cffi import requests as curl_requests
-    _session = curl_requests.Session(impersonate="chrome110")
+    _session = curl_requests.Session(impersonate="chrome124")
 except ImportError:
     import requests
     _session = requests.Session()
@@ -76,7 +76,7 @@ def _retry(fn, ticker: str, retries: int) -> dict:
         except Exception as e:
             last_exc = e
             if attempt < retries - 1:
-                time.sleep(2 ** (attempt + 1))   # 2s, 4s, …
+                time.sleep(8 * 2 ** attempt)   # 8s, 16s, …
     raise last_exc
 
 
@@ -106,6 +106,11 @@ def _fetch_raw(ticker: str) -> dict:
     t = yf.Ticker(ticker, session=_session)
     info = t.info or {}
     time.sleep(_DELAY_AFTER_INFO)
+
+    # Yahoo Finance returns a near-empty dict (e.g. {'trailingPegRatio': None}) when
+    # rate-limited rather than raising — detect this and raise so _retry can back off.
+    if not info.get('shortName') and not info.get('longName') and not info.get('symbol'):
+        raise RuntimeError(f"Empty info for {ticker} — likely rate-limited by Yahoo Finance")
 
     company = {
         'ticker':       ticker,
