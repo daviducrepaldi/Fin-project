@@ -6,6 +6,8 @@ When making file edits (especially config files, profiles, or CVs), NEVER overwr
 
 After running `git commit`, ALWAYS run `git push` immediately unless the user explicitly says not to. Confirm the push was successful before reporting the task as done.
 
+At the end of every session, commit and push all uncommitted changes unless the user explicitly says not to.
+
 ## Bash / Shell
 
 Avoid interactive CLI tools in Bash. Always use non-interactive flags (e.g., `--yes`, `--default`, `-y`) or pipe expected input. If a tool absolutely requires an interactive terminal, tell the user immediately instead of retrying.
