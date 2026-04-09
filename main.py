@@ -1,37 +1,19 @@
 #!/usr/bin/env python3
-"""
-Financial Statement Analyzer
-─────────────────────────────
-Usage:
-  python main.py AAPL
-  python main.py AAPL MSFT GOOG
-  python main.py AAPL --export
-  python main.py AAPL MSFT GOOG --export
-  python main.py --offline AAPL       (use cached SQLite data only)
-"""
-
+import argparse
 import os
-import sys
 from src import db, fetcher, analyzer, display, exporter
 
 
 def main():
-    args = sys.argv[1:]
-    if not args or args == ['--help'] or args == ['-h']:
-        print(__doc__)
-        sys.exit(0)
-
-    offline = '--offline' in args
-    do_export = '--export' in args
-    tickers = [a.upper() for a in args if not a.startswith('--')]
-
-    if not tickers:
-        print("Error: no ticker symbols provided.")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Financial Statement Analyzer")
+    parser.add_argument('tickers', nargs='+', metavar='TICKER', type=str.upper)
+    parser.add_argument('--offline', action='store_true', help='Use cached SQLite data only')
+    parser.add_argument('--export',  action='store_true', help='Export results to CSV')
+    args = parser.parse_args()
+    tickers, offline, do_export = args.tickers, args.offline, args.export
 
     db.init_db()
 
-    all_data    = {}   # ticker -> raw data dict
     all_results = {}   # ticker -> analyzer result dict
 
     for ticker in tickers:
@@ -52,7 +34,6 @@ def main():
                 continue
 
         result = analyzer.compute_ratios(data)
-        all_data[ticker]    = data
         all_results[ticker] = result
 
         # Single-ticker detailed view

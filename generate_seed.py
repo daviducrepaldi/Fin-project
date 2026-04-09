@@ -7,24 +7,13 @@ Run locally to populate data/ with pre-fetched JSON files:
 Commit data/ to the repo so Streamlit Cloud has static data on cold starts.
 """
 import json
-import math
 import os
 import sys
 from src import db, fetcher
+from src.utils import clean_for_json
 
 DEFAULT_TICKERS = ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'AMZN', 'JPM', 'META', 'NVDA']
 DATA_DIR = 'data'
-
-
-def _clean(obj):
-    """Recursively replace NaN/Inf with None for JSON serialisation."""
-    if isinstance(obj, float):
-        return None if (math.isnan(obj) or math.isinf(obj)) else obj
-    if isinstance(obj, dict):
-        return {k: _clean(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [_clean(v) for v in obj]
-    return obj
 
 
 def _filter_nulls(data):
@@ -38,24 +27,29 @@ def _filter_nulls(data):
     return data
 
 
-os.makedirs(DATA_DIR, exist_ok=True)
-db.init_db()
+def main():
+    os.makedirs(DATA_DIR, exist_ok=True)
+    db.init_db()
 
-tickers = sys.argv[1:] if len(sys.argv) > 1 else DEFAULT_TICKERS
+    tickers = sys.argv[1:] if len(sys.argv) > 1 else DEFAULT_TICKERS
 
-for ticker in tickers:
-    ticker = ticker.upper()
-    print(f"Fetching {ticker}…", flush=True)
-    try:
-        data = fetcher.fetch_and_store(ticker)
-        data = _filter_nulls(_clean(data))
-        path = os.path.join(DATA_DIR, f'{ticker}.json')
-        with open(path, 'w') as f:
-            json.dump(data, f, indent=2)
-        print(f"  ✓ {len(data['income'])}Q income  "
-              f"{len(data['balance'])}Q balance  "
-              f"{len(data['cashflow'])}Q cashflow  → {path}")
-    except Exception as e:
-        print(f"  ✗ {ticker}: {e}")
+    for ticker in tickers:
+        ticker = ticker.upper()
+        print(f"Fetching {ticker}…", flush=True)
+        try:
+            data = fetcher.fetch_and_store(ticker)
+            data = _filter_nulls(clean_for_json(data))
+            path = os.path.join(DATA_DIR, f'{ticker}.json')
+            with open(path, 'w') as f:
+                json.dump(data, f, indent=2)
+            print(f"  ✓ {len(data['income'])}Q income  "
+                  f"{len(data['balance'])}Q balance  "
+                  f"{len(data['cashflow'])}Q cashflow  → {path}")
+        except Exception as e:
+            print(f"  ✗ {ticker}: {e}")
 
-print(f"\nDone. Regenerate anytime with: python3 generate_seed.py")
+    print(f"\nDone. Regenerate anytime with: python3 generate_seed.py")
+
+
+if __name__ == '__main__':
+    main()

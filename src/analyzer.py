@@ -34,7 +34,7 @@ def _pct(val, decimals=1):
 
 def _ttm(rows, field, n=4):
     """Sum the `n` most-recent non-None values. Returns None if fewer than n found."""
-    vals = [r[field] for r in rows if r.get(field) is not None][:n]
+    vals = [r.get(field) for r in rows if r.get(field) is not None][:n]
     return sum(vals) if len(vals) == n else None
 
 

@@ -1,5 +1,6 @@
 import shutil
 from tabulate import tabulate
+from src.utils import period_to_quarter_label
 
 # ── formatting helpers ────────────────────────────────────────────────────────
 
@@ -56,11 +57,7 @@ def _col_headers(quarters, include_ttm=True):
     """Build column headers like ['TTM', 'Q3\'24', 'Q2\'24', ...]."""
     headers = ['TTM'] if include_ttm else []
     for q in quarters:
-        p = q['period']           # e.g. '2024-09-28'
-        year = p[2:4]             # '24'
-        month = int(p[5:7])
-        qnum = (month - 1) // 3 + 1
-        headers.append(f"Q{qnum}'{year}")
+        headers.append(period_to_quarter_label(q['period']))
     return headers
 
 
@@ -176,7 +173,6 @@ def print_analysis(ticker: str, result: dict):
     # ── Liquidity & Leverage (balance sheet — no TTM) ─────────────
     q_bal_headers = _col_headers(quarters, include_ttm=False)
     q_bal = lambda key: [_fmt(q.get(key)) for q in quarters]
-    q_bal_neg = lambda key: [_fmt(q.get(key)) for q in quarters]
 
     _print_section('Liquidity & Leverage', [
         _label_col('Current Ratio',    q_bal('current_ratio')),
@@ -242,13 +238,13 @@ def print_comparison(tickers: list, all_results: dict):
     # Market Data
     mkt_rows = []
     for label, key, fmt_fn in [
-        ('Market Cap',    'market_cap',       lambda v: _fmt_large(v)),
+        ('Market Cap',    'market_cap',       _fmt_large),
         ('P/E (TTM)',     'pe_trailing',      lambda v: _fmt(v, suffix='x')),
         ('P/E (Fwd)',     'pe_forward',       lambda v: _fmt(v, suffix='x')),
         ('EV/EBITDA',     'ev_ebitda_info',   lambda v: _fmt(v, suffix='x')),
         ('EV/Revenue',    'ev_revenue_info',  lambda v: _fmt(v, suffix='x')),
         ('P/B',           'pb_ratio',         lambda v: _fmt(v, suffix='x')),
-        ('Beta',          'beta',             lambda v: _fmt(v)),
+        ('Beta',          'beta',             _fmt),
     ]:
         vals = [fmt_fn(all_results[t]['market'].get(key)) for t in tickers]
         if any(v != 'N/A' for v in vals):
@@ -289,10 +285,10 @@ def print_comparison(tickers: list, all_results: dict):
     # Liquidity & Leverage (latest quarter)
     lev_rows = []
     for label, key, fmt_fn in [
-        ('Current Ratio',     'current_ratio',     lambda v: _fmt(v)),
-        ('Quick Ratio',       'quick_ratio',        lambda v: _fmt(v)),
-        ('Debt / Equity',     'debt_to_equity',     lambda v: _fmt(v)),
-        ('Net Debt',          'net_debt',           lambda v: _fmt_large(v)),
+        ('Current Ratio',     'current_ratio',     _fmt),
+        ('Quick Ratio',       'quick_ratio',        _fmt),
+        ('Debt / Equity',     'debt_to_equity',     _fmt),
+        ('Net Debt',          'net_debt',           _fmt_large),
         ('Interest Coverage', 'interest_coverage',  lambda v: _fmt(v, suffix='x')),
     ]:
         vals = [fmt_fn(all_results[t]['ttm'].get(key)) for t in tickers]

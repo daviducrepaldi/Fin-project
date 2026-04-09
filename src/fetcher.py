@@ -66,21 +66,26 @@ def _info_val(info, *keys):
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def _retry(fn, ticker: str, retries: int) -> dict:
+    """Call fn(ticker) up to `retries` times, sleeping 2**(attempt+1) seconds between
+    attempts. Raises the last exception if every attempt fails."""
+    last_exc = None
+    for attempt in range(retries):
+        try:
+            return fn(ticker)
+        except Exception as e:
+            last_exc = e
+            if attempt < retries - 1:
+                time.sleep(2 ** (attempt + 1))   # 2s, 4s, …
+    raise last_exc
+
+
 def fetch_only(ticker: str, _retries: int = 3) -> dict:
     """
     Fetch from yfinance and return a data dict. No DB writes, no disk writes.
     Use this for tickers that should not be persisted locally.
     """
-    ticker = ticker.upper()
-    last_exc = None
-    for attempt in range(_retries):
-        try:
-            return _fetch_raw(ticker)
-        except Exception as e:
-            last_exc = e
-            if attempt < _retries - 1:
-                time.sleep(2 ** (attempt + 1))   # 2s, 4s
-    raise last_exc
+    return _retry(_fetch_raw, ticker.upper(), _retries)
 
 
 def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
@@ -88,16 +93,7 @@ def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
     Fetch from yfinance and persist to SQLite. Returns the same data dict as fetch_only.
     Use this for pre-loaded tickers that should be stored in the DB and JSON files.
     """
-    ticker = ticker.upper()
-    last_exc = None
-    for attempt in range(_retries):
-        try:
-            return _fetch_and_store(ticker)
-        except Exception as e:
-            last_exc = e
-            if attempt < _retries - 1:
-                time.sleep(2 ** (attempt + 1))   # 2s, 4s
-    raise last_exc
+    return _retry(_fetch_and_store, ticker.upper(), _retries)
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
