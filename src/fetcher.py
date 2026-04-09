@@ -33,7 +33,7 @@ def _retry(fn, ticker: str, retries: int, delay_base: int = 4, status_callback=N
     raise last_exc
 
 
-def fetch_only(ticker: str, _retries: int = 2, status_callback=None) -> dict:
+def fetch_only(ticker: str, _retries: int = 3, status_callback=None) -> dict:
     """
     Fetch from yahooquery and return a data dict. No DB writes, no disk writes.
     Use this for tickers that should not be persisted locally.
@@ -57,7 +57,7 @@ def _fetch_raw(ticker: str) -> dict:
     Core yahooquery fetch. Builds and returns the structured data dict without
     touching the database or filesystem.
     """
-    t = Ticker(ticker)
+    t = Ticker(ticker, timeout=15)
 
     # ── Company & market data ─────────────────────────────────────
     # yahooquery returns a string (error message) instead of a dict on failure;
