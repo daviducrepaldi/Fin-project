@@ -93,7 +93,11 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
                 return (data, result), None   # silent fallback to pre-fetched JSON
             if ticker in AVAILABLE_TICKERS:
                 return None, f"Live fetch failed for **{ticker}** and no cached data found. Run `python prefetch_data.py --tickers {ticker}` to rebuild it."
-            return None, f"Live fetch failed for **{ticker}** — Yahoo Finance may be rate-limiting. Wait a moment and try again."
+            reason = str(e) if str(e) else type(e).__name__
+            return None, (
+                f"Live fetch failed for **{ticker}**.\n\n"
+                f"**Reason:** {reason}\n\nWait a moment and try again."
+            )
 
     # Default: load from static file
     data = _load_file(ticker)
@@ -104,16 +108,27 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
 
     # Not in static data — live fetch via fetch_only (no DB, no disk write)
     try:
-        with st.spinner(f"Fetching live data for {ticker}…"):
-            data = fetcher.fetch_only(ticker)
+        status_box = st.status(f"Fetching live data for {ticker}…", expanded=True)
+
+        def _on_retry(attempt, delay, exc):
+            status_box.write(
+                f"Attempt {attempt + 1} failed ({type(exc).__name__}). Retrying in {delay}s…"
+            )
+
+        with status_box:
+            data = fetcher.fetch_only(ticker, status_callback=_on_retry)
+            status_box.update(label=f"{ticker} fetched successfully", state="complete")
+
         result = analyzer.compute_ratios(data)
         cache[ticker] = (data, result)
         return (data, result), None
     except Exception as e:
         print(f"FETCH ERROR [analyze] {ticker}: {type(e).__name__}: {e}")
         available = '  ·  '.join(AVAILABLE_TICKERS)
+        reason = str(e) if str(e) else type(e).__name__
         return None, (
-            f"Could not fetch **{ticker}** — Yahoo Finance may be rate-limiting or the ticker is invalid. "
+            f"Could not fetch **{ticker}**.\n\n"
+            f"**Reason:** {reason}\n\n"
             f"Wait a moment and try again.\n\nPre-loaded (instant): {available}"
         )
 

@@ -9,6 +9,7 @@ MAX_QUARTERS = 16  # ~4 years
 # Delay constants — Yahoo Finance throttles .info heavily; named here for easy tuning.
 _DELAY_AFTER_INFO = 5        # Extra breathing room after the .info call
 _DELAY_BETWEEN_CALLS = 3     # Pause between each subsequent yfinance DataFrame fetch
+_RETRY_DELAY_BASE = 4        # Base for fetch_only (UI path): 4s, 8s between retries
 
 # curl_cffi impersonates a real browser (TLS fingerprint + headers) which Yahoo Finance
 # now requires to avoid 429s — especially on shared IPs like Streamlit Cloud.
@@ -66,9 +67,11 @@ def _info_val(info, *keys):
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def _retry(fn, ticker: str, retries: int) -> dict:
-    """Call fn(ticker) up to `retries` times, sleeping 2**(attempt+1) seconds between
-    attempts. Raises the last exception if every attempt fails."""
+def _retry(fn, ticker: str, retries: int, delay_base: int = 4, status_callback=None) -> dict:
+    """Call fn(ticker) up to `retries` times, sleeping delay_base * 2**attempt seconds
+    between attempts. If status_callback is provided it is called as
+    status_callback(attempt, delay, exc) before each sleep so callers can surface
+    retry progress to the UI. Raises the last exception if every attempt fails."""
     last_exc = None
     for attempt in range(retries):
         try:
@@ -76,16 +79,20 @@ def _retry(fn, ticker: str, retries: int) -> dict:
         except Exception as e:
             last_exc = e
             if attempt < retries - 1:
-                time.sleep(8 * 2 ** attempt)   # 8s, 16s, …
+                delay = delay_base * 2 ** attempt
+                if status_callback:
+                    status_callback(attempt, delay, e)
+                time.sleep(delay)
     raise last_exc
 
 
-def fetch_only(ticker: str, _retries: int = 3) -> dict:
+def fetch_only(ticker: str, _retries: int = 2, status_callback=None) -> dict:
     """
     Fetch from yfinance and return a data dict. No DB writes, no disk writes.
     Use this for tickers that should not be persisted locally.
     """
-    return _retry(_fetch_raw, ticker.upper(), _retries)
+    return _retry(_fetch_raw, ticker.upper(), _retries,
+                  delay_base=_RETRY_DELAY_BASE, status_callback=status_callback)
 
 
 def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
@@ -93,7 +100,7 @@ def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
     Fetch from yfinance and persist to SQLite. Returns the same data dict as fetch_only.
     Use this for pre-loaded tickers that should be stored in the DB and JSON files.
     """
-    return _retry(_fetch_and_store, ticker.upper(), _retries)
+    return _retry(_fetch_and_store, ticker.upper(), _retries, delay_base=8)
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
