@@ -60,15 +60,22 @@ def _fetch_raw(ticker: str) -> dict:
     t = Ticker(ticker)
 
     # ── Company & market data ─────────────────────────────────────
-    price_data   = t.price.get(ticker, {}) or {}
-    detail_data  = t.summary_detail.get(ticker, {}) or {}
-    key_stats    = t.key_stats.get(ticker, {}) or {}
-    profile_data = t.asset_profile.get(ticker, {}) or {}
+    # yahooquery returns a string (error message) instead of a dict on failure;
+    # _d() coerces non-dict responses to {} so subsequent .get() calls don't crash.
+    def _d(val):
+        return val if isinstance(val, dict) else {}
+
+    raw_price    = t.price.get(ticker)
+    price_data   = _d(raw_price)
+    detail_data  = _d(t.summary_detail.get(ticker))
+    key_stats    = _d(t.key_stats.get(ticker))
+    profile_data = _d(t.asset_profile.get(ticker))
     time.sleep(_DELAY_AFTER_INFO)
 
-    # Detect empty/rate-limited response
+    # Detect empty/rate-limited response — surface the raw error string if available
     if not price_data.get('longName') and not price_data.get('shortName') and not price_data.get('symbol'):
-        raise RuntimeError(f"Empty data for {ticker} — likely rate-limited or invalid ticker")
+        reason = raw_price if isinstance(raw_price, str) else "likely rate-limited or invalid ticker"
+        raise RuntimeError(f"{ticker}: {reason}")
 
     company = {
         'ticker':       ticker,
