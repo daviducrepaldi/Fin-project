@@ -1,56 +1,15 @@
 import math
 import time
 from datetime import date
-import yfinance as yf
+from yahooquery import Ticker
 from src import db
 
 MAX_QUARTERS = 16  # ~4 years
 
-# Delay constants — Yahoo Finance throttles .info heavily; named here for easy tuning.
-_DELAY_AFTER_INFO = 5        # Extra breathing room after the .info call
-_DELAY_BETWEEN_CALLS = 3     # Pause between each subsequent yfinance DataFrame fetch
+# Delay constants
+_DELAY_AFTER_INFO = 5        # Extra breathing room after the info calls
+_DELAY_BETWEEN_CALLS = 3     # Pause between each subsequent financial statement fetch
 _RETRY_DELAY_BASE = 4        # Base for fetch_only (UI path): 4s, 8s between retries
-
-
-def _get_df(ticker_obj, *attrs):
-    """Try multiple attribute names and return the first non-empty DataFrame."""
-    for attr in attrs:
-        df = getattr(ticker_obj, attr, None)
-        if df is not None and not df.empty:
-            return df
-    return None
-
-
-def _val(series, *keys):
-    """Extract a float from a Series by trying multiple index keys. Returns None on miss/NaN."""
-    for key in keys:
-        if key in series.index:
-            v = series[key]
-            try:
-                f = float(v)
-                if math.isnan(f):
-                    return None
-                return f
-            except (TypeError, ValueError):
-                return None
-    return None
-
-
-def _info_val(info, *keys):
-    """
-    Safe get from info dict. Returns None for missing keys, None values, or NaN floats.
-    Returns 0.0 for genuine zero values — callers must use `is not None` checks, not truthiness.
-    """
-    for key in keys:
-        v = info.get(key)
-        if v is None:
-            continue
-        try:
-            f = float(v)
-            return None if math.isnan(f) else f
-        except (TypeError, ValueError):
-            continue
-    return None
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -76,7 +35,7 @@ def _retry(fn, ticker: str, retries: int, delay_base: int = 4, status_callback=N
 
 def fetch_only(ticker: str, _retries: int = 2, status_callback=None) -> dict:
     """
-    Fetch from yfinance and return a data dict. No DB writes, no disk writes.
+    Fetch from yahooquery and return a data dict. No DB writes, no disk writes.
     Use this for tickers that should not be persisted locally.
     """
     return _retry(_fetch_raw, ticker.upper(), _retries,
@@ -85,7 +44,7 @@ def fetch_only(ticker: str, _retries: int = 2, status_callback=None) -> dict:
 
 def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
     """
-    Fetch from yfinance and persist to SQLite. Returns the same data dict as fetch_only.
+    Fetch from yahooquery and persist to SQLite. Returns the same data dict as fetch_only.
     Use this for pre-loaded tickers that should be stored in the DB and JSON files.
     """
     return _retry(_fetch_and_store, ticker.upper(), _retries, delay_base=8)
@@ -95,123 +54,159 @@ def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
 
 def _fetch_raw(ticker: str) -> dict:
     """
-    Core yfinance fetch. Builds and returns the structured data dict without
+    Core yahooquery fetch. Builds and returns the structured data dict without
     touching the database or filesystem.
     """
-    t = yf.Ticker(ticker)
-    info = t.info or {}
+    t = Ticker(ticker)
+
+    # ── Company & market data ─────────────────────────────────────
+    price_data   = t.price.get(ticker, {}) or {}
+    detail_data  = t.summary_detail.get(ticker, {}) or {}
+    key_stats    = t.key_stats.get(ticker, {}) or {}
+    profile_data = t.asset_profile.get(ticker, {}) or {}
     time.sleep(_DELAY_AFTER_INFO)
 
-    # Yahoo Finance returns a near-empty dict (e.g. {'trailingPegRatio': None}) when
-    # rate-limited rather than raising — detect this and raise so _retry can back off.
-    if not info.get('shortName') and not info.get('longName') and not info.get('symbol'):
-        raise RuntimeError(f"Empty info for {ticker} — likely rate-limited by Yahoo Finance")
+    # Detect empty/rate-limited response
+    if not price_data.get('longName') and not price_data.get('shortName') and not price_data.get('symbol'):
+        raise RuntimeError(f"Empty data for {ticker} — likely rate-limited or invalid ticker")
 
     company = {
         'ticker':       ticker,
-        'name':         info.get('longName') or info.get('shortName', ticker),
-        'sector':       info.get('sector', ''),
-        'industry':     info.get('industry', ''),
-        'currency':     info.get('currency', ''),
-        'exchange':     info.get('exchange', ''),
+        'name':         price_data.get('longName') or price_data.get('shortName', ticker),
+        'sector':       profile_data.get('sector', ''),
+        'industry':     profile_data.get('industry', ''),
+        'currency':     price_data.get('currency', ''),
+        'exchange':     price_data.get('exchangeName', ''),
         'last_updated': str(date.today()),
     }
 
+    def _safe(d, *keys):
+        for k in keys:
+            v = d.get(k)
+            if v is None:
+                continue
+            try:
+                f = float(v)
+                return None if math.isnan(f) else f
+            except (TypeError, ValueError):
+                continue
+        return None
+
     market = {
-        'market_cap':         _info_val(info, 'marketCap'),
-        'enterprise_value':   _info_val(info, 'enterpriseValue'),
-        'shares_outstanding': _info_val(info, 'sharesOutstanding'),
-        'price':              _info_val(info, 'currentPrice', 'regularMarketPrice'),
-        'pe_trailing':        _info_val(info, 'trailingPE'),
-        'pe_forward':         _info_val(info, 'forwardPE'),
-        'pb_ratio':           _info_val(info, 'priceToBook'),
-        'ev_ebitda_info':     _info_val(info, 'enterpriseToEbitda'),
-        'ev_revenue_info':    _info_val(info, 'enterpriseToRevenue'),
-        'dividend_yield':     _info_val(info, 'dividendYield'),
-        'beta':               _info_val(info, 'beta'),
-        'week52_high':        _info_val(info, 'fiftyTwoWeekHigh'),
-        'week52_low':         _info_val(info, 'fiftyTwoWeekLow'),
+        'market_cap':         _safe(price_data,  'marketCap'),
+        'enterprise_value':   _safe(key_stats,   'enterpriseValue'),
+        'shares_outstanding': _safe(key_stats,   'sharesOutstanding', 'impliedSharesOutstanding'),
+        'price':              _safe(price_data,  'regularMarketPrice'),
+        'pe_trailing':        _safe(detail_data, 'trailingPE'),
+        'pe_forward':         _safe(key_stats,   'forwardPE'),
+        'pb_ratio':           _safe(key_stats,   'priceToBook'),
+        'ev_ebitda_info':     _safe(key_stats,   'enterpriseToEbitda'),
+        'ev_revenue_info':    _safe(key_stats,   'enterpriseToRevenue'),
+        'dividend_yield':     _safe(detail_data, 'dividendYield'),
+        'beta':               _safe(detail_data, 'beta'),
+        'week52_high':        _safe(detail_data, 'fiftyTwoWeekHigh'),
+        'week52_low':         _safe(detail_data, 'fiftyTwoWeekLow'),
     }
+
+    # ── Financial statement helpers ───────────────────────────────
+    def _row_val(row, *keys):
+        for k in keys:
+            v = row.get(k)
+            if v is None or (isinstance(v, float) and math.isnan(v)):
+                continue
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                continue
+        return None
+
+    def _parse_period(val):
+        if hasattr(val, 'date'):
+            return str(val.date())
+        return str(val)[:10]
 
     # ── Income statement (quarterly) ──────────────────────────────
     income = []
-    inc_df = _get_df(t, 'quarterly_income_stmt', 'quarterly_financials')
-    time.sleep(_DELAY_BETWEEN_CALLS)
-    if inc_df is not None:
-        for col in list(inc_df.columns)[:MAX_QUARTERS]:
-            period = str(col.date())
-            s = inc_df[col]
-            ebitda = _val(s, 'EBITDA', 'Normalized EBITDA')
-            da = _val(s, 'Reconciled Depreciation',
-                      'Depreciation And Amortization',
-                      'Depreciation Amortization Depletion')
-            op = _val(s, 'Operating Income', 'EBIT')
-            if ebitda is None and op is not None and da is not None:
-                ebitda = op + da
-            income.append({
-                'period':                    period,
-                'revenue':                   _val(s, 'Total Revenue'),
-                'gross_profit':              _val(s, 'Gross Profit'),
-                'operating_income':          op,
-                'net_income':                _val(s, 'Net Income', 'Net Income Common Stockholders'),
-                'ebitda':                    ebitda,
-                'interest_expense':          _val(s, 'Interest Expense',
-                                                  'Interest Expense Non Operating'),
-                'depreciation_amortization': da,
-            })
+    try:
+        inc_df = t.income_statement(frequency='q')
+        time.sleep(_DELAY_BETWEEN_CALLS)
+        if inc_df is not None and not inc_df.empty and 'asOfDate' in inc_df.columns:
+            for _, row in inc_df.sort_values('asOfDate', ascending=False).head(MAX_QUARTERS).iterrows():
+                period = _parse_period(row['asOfDate'])
+                op = _row_val(row, 'OperatingIncome', 'EBIT')
+                da = _row_val(row, 'ReconciledDepreciation', 'DepreciationAmortizationDepletion')
+                eb = _row_val(row, 'EBITDA', 'NormalizedEBITDA')
+                if eb is None and op is not None and da is not None:
+                    eb = op + da
+                income.append({
+                    'period':                    period,
+                    'revenue':                   _row_val(row, 'TotalRevenue'),
+                    'gross_profit':              _row_val(row, 'GrossProfit'),
+                    'operating_income':          op,
+                    'net_income':                _row_val(row, 'NetIncome', 'NetIncomeCommonStockholders'),
+                    'ebitda':                    eb,
+                    'interest_expense':          _row_val(row, 'InterestExpense', 'InterestExpenseNonOperating'),
+                    'depreciation_amortization': da,
+                })
+    except Exception:
+        time.sleep(_DELAY_BETWEEN_CALLS)
 
     # ── Balance sheet (quarterly) ─────────────────────────────────
     balance = []
-    bal_df = _get_df(t, 'quarterly_balance_sheet')
-    time.sleep(_DELAY_BETWEEN_CALLS)
-    if bal_df is not None:
-        for col in list(bal_df.columns)[:MAX_QUARTERS]:
-            period = str(col.date())
-            s = bal_df[col]
-            total_assets = _val(s, 'Total Assets')
-            equity = _val(s, 'Stockholders Equity', 'Common Stock Equity',
-                          'Total Equity Gross Minority Interest')
-            total_liab = _val(s, 'Total Liabilities Net Minority Interest', 'Total Liab')
-            if total_liab is None and total_assets is not None and equity is not None:
-                total_liab = total_assets - equity
-            balance.append({
-                'period':              period,
-                'total_assets':        total_assets,
-                'total_liabilities':   total_liab,
-                'equity':              equity,
-                'cash':                _val(s, 'Cash And Cash Equivalents',
-                                            'Cash Cash Equivalents And Short Term Investments'),
-                'total_debt':          _val(s, 'Total Debt',
-                                            'Long Term Debt And Capital Lease Obligation'),
-                'current_assets':      _val(s, 'Current Assets'),
-                'current_liabilities': _val(s, 'Current Liabilities'),
-                'inventory':           _val(s, 'Inventory'),
-            })
+    try:
+        bal_df = t.balance_sheet(frequency='q')
+        time.sleep(_DELAY_BETWEEN_CALLS)
+        if bal_df is not None and not bal_df.empty and 'asOfDate' in bal_df.columns:
+            for _, row in bal_df.sort_values('asOfDate', ascending=False).head(MAX_QUARTERS).iterrows():
+                period = _parse_period(row['asOfDate'])
+                assets = _row_val(row, 'TotalAssets')
+                equity = _row_val(row, 'StockholdersEquity', 'CommonStockEquity',
+                                  'TotalEquityGrossMinorityInterest')
+                liab   = _row_val(row, 'TotalLiabilitiesNetMinorityInterest', 'TotalLiab')
+                if liab is None and assets is not None and equity is not None:
+                    liab = assets - equity
+                balance.append({
+                    'period':              period,
+                    'total_assets':        assets,
+                    'total_liabilities':   liab,
+                    'equity':              equity,
+                    'cash':                _row_val(row, 'CashAndCashEquivalents',
+                                                    'CashCashEquivalentsAndShortTermInvestments'),
+                    'total_debt':          _row_val(row, 'TotalDebt',
+                                                    'LongTermDebtAndCapitalLeaseObligation'),
+                    'current_assets':      _row_val(row, 'CurrentAssets'),
+                    'current_liabilities': _row_val(row, 'CurrentLiabilities'),
+                    'inventory':           _row_val(row, 'Inventory'),
+                })
+    except Exception:
+        time.sleep(_DELAY_BETWEEN_CALLS)
 
     # ── Cash flow (quarterly) ─────────────────────────────────────
     cashflow = []
-    cf_df = _get_df(t, 'quarterly_cash_flow', 'quarterly_cashflow')
-    time.sleep(_DELAY_BETWEEN_CALLS)
-    if cf_df is not None:
-        for col in list(cf_df.columns)[:MAX_QUARTERS]:
-            period = str(col.date())
-            s = cf_df[col]
-            op_cf = _val(s, 'Operating Cash Flow',
-                         'Cash Flow From Continuing Operating Activities')
-            capex = _val(s, 'Capital Expenditure', 'Purchase Of Ppe')
-            fcf = _val(s, 'Free Cash Flow')
-            if fcf is None and op_cf is not None and capex is not None:
-                fcf = op_cf + capex   # capex is negative in yfinance
-            cashflow.append({
-                'period':         period,
-                'operating_cf':   op_cf,
-                'investing_cf':   _val(s, 'Investing Cash Flow',
-                                       'Cash Flow From Continuing Investing Activities'),
-                'financing_cf':   _val(s, 'Financing Cash Flow',
-                                       'Cash Flow From Continuing Financing Activities'),
-                'capex':          capex,
-                'free_cash_flow': fcf,
-            })
+    try:
+        cf_df = t.cash_flow(frequency='q')
+        time.sleep(_DELAY_BETWEEN_CALLS)
+        if cf_df is not None and not cf_df.empty and 'asOfDate' in cf_df.columns:
+            for _, row in cf_df.sort_values('asOfDate', ascending=False).head(MAX_QUARTERS).iterrows():
+                period = _parse_period(row['asOfDate'])
+                op_cf = _row_val(row, 'OperatingCashFlow',
+                                 'CashFlowFromContinuingOperatingActivities')
+                capex = _row_val(row, 'CapitalExpenditure')
+                fcf   = _row_val(row, 'FreeCashFlow')
+                if fcf is None and op_cf is not None and capex is not None:
+                    fcf = op_cf + capex
+                cashflow.append({
+                    'period':         period,
+                    'operating_cf':   op_cf,
+                    'investing_cf':   _row_val(row, 'InvestingCashFlow',
+                                               'CashFlowFromContinuingInvestingActivities'),
+                    'financing_cf':   _row_val(row, 'FinancingCashFlow',
+                                               'CashFlowFromContinuingFinancingActivities'),
+                    'capex':          capex,
+                    'free_cash_flow': fcf,
+                })
+    except Exception:
+        time.sleep(_DELAY_BETWEEN_CALLS)
 
     return {
         'company':  company,
