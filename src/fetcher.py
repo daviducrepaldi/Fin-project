@@ -11,18 +11,6 @@ _DELAY_AFTER_INFO = 5        # Extra breathing room after the .info call
 _DELAY_BETWEEN_CALLS = 3     # Pause between each subsequent yfinance DataFrame fetch
 _RETRY_DELAY_BASE = 4        # Base for fetch_only (UI path): 4s, 8s between retries
 
-# curl_cffi impersonates a real browser (TLS fingerprint + headers) which Yahoo Finance
-# now requires to avoid 429s — especially on shared IPs like Streamlit Cloud.
-try:
-    from curl_cffi import requests as curl_requests
-    _session = curl_requests.Session(impersonate="chrome124")
-except ImportError:
-    import requests
-    _session = requests.Session()
-    _session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    })
-
 
 def _get_df(ticker_obj, *attrs):
     """Try multiple attribute names and return the first non-empty DataFrame."""
@@ -110,7 +98,7 @@ def _fetch_raw(ticker: str) -> dict:
     Core yfinance fetch. Builds and returns the structured data dict without
     touching the database or filesystem.
     """
-    t = yf.Ticker(ticker, session=_session)
+    t = yf.Ticker(ticker)
     info = t.info or {}
     time.sleep(_DELAY_AFTER_INFO)
 
