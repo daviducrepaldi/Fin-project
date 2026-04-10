@@ -23,7 +23,8 @@ from src import db
 # Load .env from the project root regardless of working directory
 try:
     from dotenv import load_dotenv
-    load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+    _here = os.path.abspath(os.path.dirname(__file__))
+    load_dotenv(os.path.join(_here, "..", ".env"))
 except ImportError:
     pass
 

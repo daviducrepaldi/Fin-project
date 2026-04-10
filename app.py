@@ -2,6 +2,14 @@ import json
 import os
 import time
 from pathlib import Path
+
+# Load .env before any other imports so API keys are available immediately
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / ".env")
+except ImportError:
+    pass
+
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
