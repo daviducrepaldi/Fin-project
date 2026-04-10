@@ -427,17 +427,18 @@ with st.sidebar:
     )
     st.divider()
 
-    tickers_input = st.text_input(
-        "TICKER(S)",
-        value="AAPL",
-        placeholder="AAPL MSFT GOOGL",
-        help="Space-separated. Available: " + ", ".join(AVAILABLE_TICKERS),
-    )
-    analyze_btn = st.button("ANALYZE", type="primary", use_container_width=True)
+    with st.form("ticker_form", border=False):
+        tickers_input = st.text_input(
+            "TICKER(S)",
+            value="AAPL",
+            placeholder="AAPL MSFT GOOGL",
+            help="Space-separated. Available: " + ", ".join(AVAILABLE_TICKERS),
+        )
+        analyze_btn = st.form_submit_button("ANALYZE", type="primary", use_container_width=True)
     refresh_btn = st.button(
         "↺ REFRESH LIVE DATA",
         use_container_width=True,
-        help="Fetch latest data from yfinance. May be slow or rate-limited.",
+        help="Fetch latest data from live sources. May be slow or rate-limited.",
     )
 
     st.divider()
@@ -479,7 +480,7 @@ if not active_tickers:
     ▶ FINANCIAL TERMINAL
   </div>
   <div style="color:#888;font-size:0.76rem;margin-bottom:0.6rem;letter-spacing:0.04em;">
-    EQUITY ANALYSIS SYSTEM · POWERED BY SEC EDGAR + TIINGO
+    EQUITY ANALYSIS SYSTEM · LIVE MARKET DATA
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -633,13 +634,12 @@ for tab_idx, ticker in enumerate(all_results.keys()):
                 _accent = _color_map.get(_r, "#888888")
                 st.markdown(f"""
 <div style="background:#111;border:1px solid #2a2a2a;border-left:3px solid {_accent};
-            padding:0.4rem 0.8rem;margin:0.3rem 0 0.5rem;
-            font-family:'IBM Plex Mono',monospace;
-            display:flex;align-items:center;gap:1.8rem;">
+            padding:0.4rem 0.8rem;margin:0.3rem 0 0.6rem;
+            font-family:'IBM Plex Mono',monospace;overflow:hidden;line-height:1.4;">
   <span style="color:{_accent};font-size:0.88rem;font-weight:600;
-               letter-spacing:0.12em;">{_r}</span>
-  <span style="color:#e0e0e0;font-size:0.78rem;">
-    SCORE: <span style="color:{_accent};font-weight:600;">{_score:.1f}</span>/100
+               letter-spacing:0.12em;display:inline-block;margin-right:1.5rem;">{_r}</span>
+  <span style="color:#e0e0e0;font-size:0.78rem;display:inline-block;">
+    SCORE:&nbsp;<span style="color:{_accent};font-weight:600;">{_score:.1f}</span>/100
   </span>
   {_caution_html}
 </div>
