@@ -5,16 +5,21 @@ from pathlib import Path
 
 # Load .env before any other imports so API keys are available immediately
 def _load_env():
-    env_path = Path(__file__).parent / ".env"
-    try:
-        with open(env_path) as _f:
-            for _line in _f:
-                _line = _line.strip()
-                if _line and not _line.startswith('#') and '=' in _line:
-                    _k, _, _v = _line.partition('=')
-                    os.environ.setdefault(_k.strip(), _v.strip())
-    except OSError:
-        pass
+    candidates = [
+        Path(__file__).resolve().parent / ".env",  # project root
+        Path.cwd() / ".env",                        # wherever streamlit was launched from
+    ]
+    for env_path in candidates:
+        try:
+            with open(env_path) as _f:
+                for _line in _f:
+                    _line = _line.strip()
+                    if _line and not _line.startswith('#') and '=' in _line:
+                        _k, _, _v = _line.partition('=')
+                        os.environ.setdefault(_k.strip(), _v.strip())
+            break
+        except OSError:
+            continue
 _load_env()
 
 import streamlit as st
