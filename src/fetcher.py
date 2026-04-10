@@ -20,13 +20,16 @@ import requests
 
 from src import db
 
-# Load .env from the project root regardless of working directory
 def _load_env():
+    """Read .env and inject missing keys into os.environ. Uses inspect so the
+    path is always correct regardless of how Streamlit sets __file__."""
+    import inspect
     from pathlib import Path
+    this_dir = Path(inspect.getfile(_load_env)).resolve().parent  # always the src/ dir
     candidates = [
-        Path(__file__).resolve().parent.parent / ".env",  # project root (src/../.env)
-        Path(__file__).resolve().parent / ".env",          # src/.env (fallback)
-        Path.cwd() / ".env",                               # wherever streamlit was launched from
+        this_dir.parent / ".env",   # project root
+        this_dir / ".env",           # src/ (fallback)
+        Path.cwd() / ".env",         # wherever process was launched from
     ]
     for env_path in candidates:
         try:
@@ -35,8 +38,11 @@ def _load_env():
                     _line = _line.strip()
                     if _line and not _line.startswith('#') and '=' in _line:
                         _k, _, _v = _line.partition('=')
-                        os.environ.setdefault(_k.strip(), _v.strip())
-            break
+                        _k, _v = _k.strip(), _v.strip()
+                        # setdefault skips empty-string values; check explicitly
+                        if _k and not os.environ.get(_k):
+                            os.environ[_k] = _v
+            return  # stop after first file found
         except OSError:
             continue
 _load_env()
@@ -62,14 +68,34 @@ _cik_cache: dict = {}   # ticker → zero-padded CIK, loaded once per process
 # ── Tiingo helpers ────────────────────────────────────────────────────────────
 
 def _tiingo_key() -> str:
+    """Return the Tiingo API key. Tries every source before giving up."""
+    # 1. Environment variable (set by _load_env or the user's shell)
     key = os.environ.get("TIINGO_API_KEY", "").strip()
+
+    # 2. Streamlit secrets (.streamlit/secrets.toml)
     if not key:
-        # Fallback: read from Streamlit secrets (always works inside Streamlit)
         try:
             import streamlit as st
-            key = st.secrets.get("TIINGO_API_KEY", "").strip()
+            val = st.secrets.get("TIINGO_API_KEY") or st.secrets.get("tiingo_api_key")
+            key = str(val).strip() if val else ""
         except Exception:
             pass
+
+    # 3. Re-read .env directly using inspect (most reliable path)
+    if not key:
+        import inspect
+        from pathlib import Path
+        src_dir = Path(inspect.getfile(_tiingo_key)).resolve().parent
+        env_path = src_dir.parent / ".env"
+        try:
+            with open(env_path) as _f:
+                for _line in _f:
+                    if _line.strip().startswith("TIINGO_API_KEY="):
+                        key = _line.strip().split("=", 1)[1].strip()
+                        break
+        except OSError:
+            pass
+
     if not key:
         raise RuntimeError(
             "TIINGO_API_KEY not set. Add it to your .env file: TIINGO_API_KEY=<your_key>"
