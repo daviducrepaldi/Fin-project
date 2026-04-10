@@ -9,6 +9,7 @@ from src import db
 MAX_QUARTERS = 16  # ~4 years
 
 _RETRY_DELAY_BASE = 4
+_RATE_LIMIT_DELAY = 60   # seconds to wait when Yahoo rate-limits us
 
 
 def _safe(d: dict, *keys):
@@ -39,8 +40,15 @@ def _sv(series, *names):
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def _is_rate_limited(exc: Exception) -> bool:
+    name = type(exc).__name__
+    msg  = str(exc).lower()
+    return 'ratelimit' in name.lower() or 'too many requests' in msg or '429' in msg
+
+
 def _retry(fn, ticker: str, retries: int, delay_base: int = 4, status_callback=None) -> dict:
-    """Call fn(ticker) up to `retries` times with exponential back-off."""
+    """Call fn(ticker) up to `retries` times with exponential back-off.
+    Rate-limit errors use a fixed long delay instead of the short base delay."""
     last_exc = None
     for attempt in range(retries):
         try:
@@ -48,7 +56,7 @@ def _retry(fn, ticker: str, retries: int, delay_base: int = 4, status_callback=N
         except Exception as e:
             last_exc = e
             if attempt < retries - 1:
-                delay = delay_base * 2 ** attempt
+                delay = _RATE_LIMIT_DELAY if _is_rate_limited(e) else delay_base * 2 ** attempt
                 if status_callback:
                     status_callback(attempt, delay, e)
                 time.sleep(delay)
