@@ -66,7 +66,18 @@ st.markdown("""
     background: var(--bg) !important;
     max-width: 100% !important;
 }
-* { font-family: var(--font) !important; }
+/* Apply monospace to content elements — exclude Material Icons font so
+   Streamlit's internal expand/collapse chevrons render as glyphs, not text */
+body, p, div, span, h1, h2, h3, h4, h5, h6,
+button, input, select, textarea,
+td, th, li, label, caption, small,
+[data-testid], [class^="st"] {
+    font-family: var(--font) !important;
+}
+.material-icons, .material-icons-outlined, .material-icons-round,
+[class*="MaterialIcon"] {
+    font-family: 'Material Icons', 'Material Icons Outlined' !important;
+}
 
 /* ── Headings ── */
 h1, h2, h3, h4, h5 {
@@ -86,7 +97,11 @@ p, li { color: var(--text); line-height: 1.5; font-size: 0.84rem; }
     background: var(--surface) !important;
     border-right: 1px solid var(--border);
 }
-[data-testid="stSidebar"] * { font-family: var(--font) !important; }
+[data-testid="stSidebar"] body, [data-testid="stSidebar"] p,
+[data-testid="stSidebar"] div, [data-testid="stSidebar"] span,
+[data-testid="stSidebar"] button, [data-testid="stSidebar"] input,
+[data-testid="stSidebar"] label, [data-testid="stSidebar"] td,
+[data-testid="stSidebar"] th { font-family: var(--font) !important; }
 [data-testid="stSidebar"] p,
 [data-testid="stSidebar"] span,
 [data-testid="stSidebar"] div { color: var(--text); }
