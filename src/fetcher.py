@@ -21,7 +21,20 @@ try:
     _YF_SESSION = _curl_requests.Session(impersonate="chrome")
     _YF_SESSION.get("https://finance.yahoo.com", timeout=15)
 except Exception:
+    _curl_requests = None
     _YF_SESSION = None  # fall back to yahooquery's default per-call session
+
+
+def _refresh_session():
+    """Re-create the curl_cffi session to obtain a fresh crumb/cookie."""
+    global _YF_SESSION
+    if _curl_requests is None:
+        return
+    try:
+        _YF_SESSION = _curl_requests.Session(impersonate="chrome")
+        _YF_SESSION.get("https://finance.yahoo.com", timeout=15)
+    except Exception:
+        _YF_SESSION = None
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -38,6 +51,8 @@ def _retry(fn, ticker: str, retries: int, delay_base: int = 4, status_callback=N
         except Exception as e:
             last_exc = e
             if attempt < retries - 1:
+                if 'crumb' in str(e).lower():
+                    _refresh_session()
                 delay = delay_base * 2 ** attempt
                 if status_callback:
                     status_callback(attempt, delay, e)
