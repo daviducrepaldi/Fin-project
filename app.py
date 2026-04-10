@@ -436,7 +436,7 @@ with st.sidebar:
         )
         analyze_btn = st.form_submit_button("ANALYZE", type="primary", use_container_width=True)
     refresh_btn = st.button(
-        "↺ REFRESH LIVE DATA",
+        "🔄 REFRESH LIVE DATA",
         use_container_width=True,
         help="Fetch latest data from live sources. May be slow or rate-limited.",
     )
@@ -634,13 +634,11 @@ for tab_idx, ticker in enumerate(all_results.keys()):
                 _accent = _color_map.get(_r, "#888888")
                 st.markdown(f"""
 <div style="background:#111;border:1px solid #2a2a2a;border-left:3px solid {_accent};
-            padding:0.4rem 0.8rem;margin:0.3rem 0 0.6rem;
-            font-family:'IBM Plex Mono',monospace;overflow:hidden;line-height:1.4;">
-  <span style="color:{_accent};font-size:0.88rem;font-weight:600;
-               letter-spacing:0.12em;display:inline-block;margin-right:1.5rem;">{_r}</span>
-  <span style="color:#e0e0e0;font-size:0.78rem;display:inline-block;">
-    SCORE:&nbsp;<span style="color:{_accent};font-weight:600;">{_score:.1f}</span>/100
-  </span>
+            padding:0.5rem 0.9rem;margin:0.4rem 0 1rem;
+            font-family:'IBM Plex Mono',monospace;line-height:1.6;">
+  <span style="color:{_accent};font-size:0.88rem;font-weight:600;letter-spacing:0.12em;">{_r}</span>
+  <span style="color:#888;font-size:0.78rem;margin:0 0.6rem;">·</span>
+  <span style="color:#e0e0e0;font-size:0.78rem;">SCORE:&nbsp;<span style="color:{_accent};font-weight:600;">{_score:.1f}</span>/100</span>
   {_caution_html}
 </div>
 """, unsafe_allow_html=True)
