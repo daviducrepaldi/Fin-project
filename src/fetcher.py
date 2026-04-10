@@ -1,19 +1,73 @@
-import math
-import time
-from datetime import date
+"""
+Data sources
+────────────
+Market data  →  Financial Modeling Prep (FMP) /stable endpoints
+                No rate limits, API key in FMP_API_KEY env var / .env file
 
-import yfinance as yf
+Financials   →  SEC EDGAR company facts API (XBRL)
+                Completely free, no API key, no rate limits
+                Authoritative source — all FMP/Yahoo data originates here
+"""
+import math
+import os
+import time
+from datetime import datetime, date
+
+import requests
 
 from src import db
 
-MAX_QUARTERS = 16  # ~4 years
+# Load .env so FMP_API_KEY is available without shell exports
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
+MAX_QUARTERS = 16
 _RETRY_DELAY_BASE = 4
-_RATE_LIMIT_DELAY = 60   # seconds to wait when Yahoo rate-limits us
+
+# ── FMP (market data) ─────────────────────────────────────────────────────────
+_FMP_BASE = "https://financialmodelingprep.com/stable"
+
+# ── SEC EDGAR (financial statements) ─────────────────────────────────────────
+_EDGAR_FACTS_URL   = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+_EDGAR_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
+_EDGAR_HEADERS     = {
+    "User-Agent":      "FinancialAnalyzerApp support@finapp.dev",
+    "Accept-Encoding": "gzip, deflate",
+}
+
+_cik_cache: dict = {}   # ticker → zero-padded CIK, loaded once per process
+
+
+# ── FMP helpers ───────────────────────────────────────────────────────────────
+
+def _fmp_key() -> str:
+    key = os.environ.get("FMP_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError(
+            "FMP_API_KEY not set. Add it to your .env file: FMP_API_KEY=<your_key>"
+        )
+    return key
+
+
+def _fmp_get(path: str, params: dict = None):
+    url = f"{_FMP_BASE}{path}"
+    p = {"apikey": _fmp_key()}
+    if params:
+        p.update(params)
+    r = requests.get(url, params=p, timeout=15)
+    r.raise_for_status()
+    data = r.json()
+    if isinstance(data, dict):
+        msg = data.get("Error Message") or data.get("error")
+        if msg:
+            raise RuntimeError(str(msg))
+    return data
 
 
 def _safe(d: dict, *keys):
-    """Get first non-None/NaN numeric value from a dict by key."""
     for k in keys:
         v = d.get(k)
         if v is None:
@@ -26,29 +80,223 @@ def _safe(d: dict, *keys):
     return None
 
 
-def _sv(series, *names):
-    """Get first non-NaN numeric value from a pandas Series by row name."""
-    for name in names:
-        if name in series.index:
+# ── EDGAR helpers ─────────────────────────────────────────────────────────────
+
+def _get_cik(ticker: str) -> str:
+    """Return zero-padded 10-digit CIK for a ticker, loading the map on first call."""
+    global _cik_cache
+    if not _cik_cache:
+        r = requests.get(_EDGAR_TICKERS_URL, headers=_EDGAR_HEADERS, timeout=30)
+        r.raise_for_status()
+        _cik_cache = {
+            v["ticker"].upper(): str(v["cik_str"]).zfill(10)
+            for v in r.json().values()
+        }
+    cik = _cik_cache.get(ticker.upper())
+    if not cik:
+        raise RuntimeError(f"{ticker}: not found in SEC EDGAR ticker list")
+    return cik
+
+
+def _get_edgar_facts(cik: str) -> dict:
+    url = _EDGAR_FACTS_URL.format(cik=cik)
+    r = requests.get(url, headers=_EDGAR_HEADERS, timeout=60)
+    r.raise_for_status()
+    return r.json()
+
+
+def _quarterly_duration(concept: dict) -> dict:
+    """
+    Extract standalone quarterly (~90-day) values from a duration XBRL concept.
+    Income-statement and cash-flow items are duration concepts.
+    Returns {end_date_str: float_value}, most-recent filing wins per period.
+    """
+    result: dict = {}
+    for unit_vals in concept.get("units", {}).values():
+        for dp in unit_vals:
+            if dp.get("form") not in ("10-Q", "10-K", "10-Q/A", "10-K/A"):
+                continue
+            start  = dp.get("start", "")
+            end    = dp.get("end", "")
+            val    = dp.get("val")
+            filed  = dp.get("filed", "")
+            if not start or not end or val is None:
+                continue
             try:
-                f = float(series[name])
-                return None if math.isnan(f) else f
-            except (TypeError, ValueError):
-                pass
-    return None
+                days = (datetime.strptime(end, "%Y-%m-%d") -
+                        datetime.strptime(start, "%Y-%m-%d")).days
+            except ValueError:
+                continue
+            if not (75 <= days <= 105):
+                continue
+            if end not in result or filed > result[end][1]:
+                result[end] = (float(val), filed)
+    return {k: v[0] for k, v in result.items()}
+
+
+def _quarterly_instant(concept: dict) -> dict:
+    """
+    Extract period-end snapshots from an instant XBRL concept.
+    Balance-sheet items are instant concepts.
+    Returns {end_date_str: float_value}, most-recent filing wins per date.
+    """
+    result: dict = {}
+    for unit_vals in concept.get("units", {}).values():
+        for dp in unit_vals:
+            if dp.get("form") not in ("10-Q", "10-K", "10-Q/A", "10-K/A"):
+                continue
+            end   = dp.get("end", "")
+            val   = dp.get("val")
+            filed = dp.get("filed", "")
+            if not end or val is None:
+                continue
+            if end not in result or filed > result[end][1]:
+                result[end] = (float(val), filed)
+    return {k: v[0] for k, v in result.items()}
+
+
+def _first_dur(ugaap: dict, *names) -> dict:
+    """Try XBRL concept names in order; return first non-empty duration result."""
+    for name in names:
+        if name in ugaap:
+            vals = _quarterly_duration(ugaap[name])
+            if vals:
+                return vals
+    return {}
+
+
+def _first_ins(ugaap: dict, *names) -> dict:
+    """Try XBRL concept names in order; return first non-empty instant result."""
+    for name in names:
+        if name in ugaap:
+            vals = _quarterly_instant(ugaap[name])
+            if vals:
+                return vals
+    return {}
+
+
+def _build_income(ugaap: dict) -> list:
+    revenue = _first_dur(ugaap,
+        "Revenues",
+        "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "SalesRevenueNet",
+        "RevenueFromContractWithCustomerIncludingAssessedTax",
+        "SalesRevenueGoodsNet",
+        "InterestAndNoninterestIncome",
+    )
+    gp = _first_dur(ugaap, "GrossProfit")
+    op = _first_dur(ugaap, "OperatingIncomeLoss")
+    ni = _first_dur(ugaap,
+        "NetIncomeLoss",
+        "NetIncomeLossAvailableToCommonStockholdersBasic",
+        "ProfitLoss",
+    )
+    ie = _first_dur(ugaap,
+        "InterestExpense",
+        "InterestAndDebtExpense",
+        "InterestExpenseDebt",
+    )
+    da = _first_dur(ugaap,
+        "DepreciationDepletionAndAmortization",
+        "DepreciationAndAmortization",
+        "DepreciationAmortizationAndAccretionNet",
+    )
+
+    all_periods = sorted(set(revenue) | set(ni), reverse=True)[:MAX_QUARTERS]
+    result = []
+    for period in all_periods:
+        o = op.get(period)
+        d = da.get(period)
+        ebitda = (o + d) if (o is not None and d is not None) else None
+        result.append({
+            "period":                    period,
+            "revenue":                   revenue.get(period),
+            "gross_profit":              gp.get(period),
+            "operating_income":          o,
+            "net_income":                ni.get(period),
+            "ebitda":                    ebitda,
+            "interest_expense":          ie.get(period),
+            "depreciation_amortization": d,
+        })
+    return result
+
+
+def _build_balance(ugaap: dict) -> list:
+    assets = _first_ins(ugaap, "Assets")
+    liab   = _first_ins(ugaap, "Liabilities")
+    equity = _first_ins(ugaap,
+        "StockholdersEquity",
+        "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+    )
+    cash = _first_ins(ugaap,
+        "CashAndCashEquivalentsAtCarryingValue",
+        "Cash",
+        "CashCashEquivalentsAndFederalFundsSold",
+    )
+    debt   = _first_ins(ugaap,
+        "LongTermDebt",
+        "LongTermDebtAndCapitalLeaseObligations",
+        "LongTermDebtNoncurrent",
+    )
+    cur_a  = _first_ins(ugaap, "AssetsCurrent")
+    cur_l  = _first_ins(ugaap, "LiabilitiesCurrent")
+    inv    = _first_ins(ugaap, "InventoryNet", "Inventories")
+
+    all_periods = sorted(set(assets) | set(equity), reverse=True)[:MAX_QUARTERS]
+    result = []
+    for period in all_periods:
+        a = assets.get(period)
+        e = equity.get(period)
+        l = liab.get(period)
+        if l is None and a is not None and e is not None:
+            l = a - e
+        result.append({
+            "period":              period,
+            "total_assets":        a,
+            "total_liabilities":   l,
+            "equity":              e,
+            "cash":                cash.get(period),
+            "total_debt":          debt.get(period),
+            "current_assets":      cur_a.get(period),
+            "current_liabilities": cur_l.get(period),
+            "inventory":           inv.get(period),
+        })
+    return result
+
+
+def _build_cashflow(ugaap: dict) -> list:
+    op_cf  = _first_dur(ugaap, "NetCashProvidedByUsedInOperatingActivities")
+    inv_cf = _first_dur(ugaap, "NetCashProvidedByUsedInInvestingActivities")
+    fin_cf = _first_dur(ugaap, "NetCashProvidedByUsedInFinancingActivities")
+    # EDGAR reports capex as positive (cash outflow); negate to match convention
+    capex_raw = _first_dur(ugaap,
+        "PaymentsToAcquirePropertyPlantAndEquipment",
+        "PaymentsForCapitalImprovements",
+        "PaymentsToAcquireProductiveAssets",
+    )
+
+    all_periods = sorted(set(op_cf), reverse=True)[:MAX_QUARTERS]
+    result = []
+    for period in all_periods:
+        oc = op_cf.get(period)
+        cx_raw = capex_raw.get(period)
+        cx = -cx_raw if cx_raw is not None else None   # store as negative
+        fcf = (oc + cx) if (oc is not None and cx is not None) else None
+        result.append({
+            "period":         period,
+            "operating_cf":   oc,
+            "investing_cf":   inv_cf.get(period),
+            "financing_cf":   fin_cf.get(period),
+            "capex":          cx,
+            "free_cash_flow": fcf,
+        })
+    return result
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def _is_rate_limited(exc: Exception) -> bool:
-    name = type(exc).__name__
-    msg  = str(exc).lower()
-    return 'ratelimit' in name.lower() or 'too many requests' in msg or '429' in msg
-
-
 def _retry(fn, ticker: str, retries: int, delay_base: int = 4, status_callback=None) -> dict:
-    """Call fn(ticker) up to `retries` times with exponential back-off.
-    Rate-limit errors use a fixed long delay instead of the short base delay."""
+    """Call fn(ticker) up to `retries` times with exponential back-off."""
     last_exc = None
     for attempt in range(retries):
         try:
@@ -56,7 +304,7 @@ def _retry(fn, ticker: str, retries: int, delay_base: int = 4, status_callback=N
         except Exception as e:
             last_exc = e
             if attempt < retries - 1:
-                delay = _RATE_LIMIT_DELAY if _is_rate_limited(e) else delay_base * 2 ** attempt
+                delay = delay_base * 2 ** attempt
                 if status_callback:
                     status_callback(attempt, delay, e)
                 time.sleep(delay)
@@ -64,147 +312,91 @@ def _retry(fn, ticker: str, retries: int, delay_base: int = 4, status_callback=N
 
 
 def fetch_only(ticker: str, _retries: int = 3, status_callback=None) -> dict:
-    """
-    Fetch from yfinance and return a data dict. No DB writes, no disk writes.
-    Use this for tickers that should not be persisted locally.
-    """
+    """Fetch and return a data dict. No DB writes."""
     return _retry(_fetch_raw, ticker.upper(), _retries,
                   delay_base=_RETRY_DELAY_BASE, status_callback=status_callback)
 
 
 def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
-    """
-    Fetch from yfinance and persist to SQLite. Returns the same data dict as fetch_only.
-    Use this for pre-loaded tickers that should be stored in the DB and JSON files.
-    """
+    """Fetch and persist to SQLite."""
     return _retry(_fetch_and_store, ticker.upper(), _retries, delay_base=8)
 
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 def _fetch_raw(ticker: str) -> dict:
-    """Core yfinance fetch. Returns the structured data dict without touching the DB."""
-    t = yf.Ticker(ticker)
-    info = t.info
+    """Fetch market data from FMP and statements from EDGAR."""
+    sym = {"symbol": ticker}
 
-    # Detect invalid ticker or empty response
-    if not info.get('longName') and not info.get('shortName') and not info.get('symbol'):
-        raise RuntimeError(f"{ticker}: no data returned — invalid ticker or rate-limited")
+    # ── Market data via FMP ───────────────────────────────────────────
+    profile_list = _fmp_get("/profile", sym)
+    if not profile_list:
+        raise RuntimeError(f"{ticker}: FMP returned no data — check the ticker symbol")
+    profile = profile_list[0]
+
+    quote_list = _fmp_get("/quote", sym)
+    quote = quote_list[0] if quote_list else {}
+
+    ratios_list = _fmp_get("/ratios-ttm", sym)
+    ratios = ratios_list[0] if ratios_list else {}
+
+    km_list = _fmp_get("/key-metrics-ttm", sym)
+    km = km_list[0] if km_list else {}
+
+    price = _safe(quote, "price") or _safe(profile, "price")
+    last_div = _safe(profile, "lastDividend")
+    div_yield = (last_div / price) if (price and last_div and price > 0) else None
 
     company = {
-        'ticker':       ticker,
-        'name':         info.get('longName') or info.get('shortName', ticker),
-        'sector':       info.get('sector', ''),
-        'industry':     info.get('industry', ''),
-        'currency':     info.get('currency', ''),
-        'exchange':     info.get('exchange', ''),
-        'last_updated': str(date.today()),
+        "ticker":       ticker,
+        "name":         profile.get("companyName", ticker),
+        "sector":       profile.get("sector", ""),
+        "industry":     profile.get("industry", ""),
+        "currency":     profile.get("currency", ""),
+        "exchange":     profile.get("exchange", ""),
+        "last_updated": str(date.today()),
     }
 
     market = {
-        'market_cap':         _safe(info, 'marketCap'),
-        'enterprise_value':   _safe(info, 'enterpriseValue'),
-        'shares_outstanding': _safe(info, 'sharesOutstanding', 'impliedSharesOutstanding'),
-        'price':              _safe(info, 'currentPrice', 'regularMarketPrice'),
-        'pe_trailing':        _safe(info, 'trailingPE'),
-        'pe_forward':         _safe(info, 'forwardPE'),
-        'pb_ratio':           _safe(info, 'priceToBook'),
-        'ev_ebitda_info':     _safe(info, 'enterpriseToEbitda'),
-        'ev_revenue_info':    _safe(info, 'enterpriseToRevenue'),
-        'dividend_yield':     _safe(info, 'dividendYield'),
-        'beta':               _safe(info, 'beta'),
-        'week52_high':        _safe(info, 'fiftyTwoWeekHigh'),
-        'week52_low':         _safe(info, 'fiftyTwoWeekLow'),
+        "market_cap":         _safe(quote,  "marketCap"),
+        "enterprise_value":   _safe(km,     "enterpriseValueTTM"),
+        "shares_outstanding": None,  # filled below from EDGAR
+        "price":              price,
+        "pe_trailing":        _safe(ratios, "priceToEarningsRatioTTM"),
+        "pe_forward":         None,  # not on free FMP tier
+        "pb_ratio":           _safe(ratios, "priceToBookRatioTTM"),
+        "ev_ebitda_info":     _safe(km,     "evToEBITDATTM"),
+        "ev_revenue_info":    _safe(km,     "evToSalesTTM"),
+        "dividend_yield":     div_yield,
+        "beta":               _safe(profile, "beta"),
+        "week52_high":        _safe(quote,  "yearHigh"),
+        "week52_low":         _safe(quote,  "yearLow"),
     }
 
-    # ── Income statement (quarterly) ──────────────────────────────────
-    income = []
-    try:
-        inc_df = t.quarterly_income_stmt
-        if inc_df is not None and not inc_df.empty:
-            for col in sorted(inc_df.columns, reverse=True)[:MAX_QUARTERS]:
-                s = inc_df[col]
-                period = str(col.date()) if hasattr(col, 'date') else str(col)[:10]
-                op = _sv(s, 'Operating Income', 'EBIT')
-                da = _sv(s, 'Reconciled Depreciation', 'Depreciation And Amortization',
-                             'Depreciation Amortization Depletion')
-                eb = _sv(s, 'EBITDA', 'Normalized EBITDA')
-                if eb is None and op is not None and da is not None:
-                    eb = op + da
-                income.append({
-                    'period':                    period,
-                    'revenue':                   _sv(s, 'Total Revenue'),
-                    'gross_profit':              _sv(s, 'Gross Profit'),
-                    'operating_income':          op,
-                    'net_income':                _sv(s, 'Net Income', 'Net Income Common Stockholders'),
-                    'ebitda':                    eb,
-                    'interest_expense':          _sv(s, 'Interest Expense'),
-                    'depreciation_amortization': da,
-                })
-    except Exception:
-        pass
+    # ── Financial statements via SEC EDGAR ────────────────────────────
+    cik   = _get_cik(ticker)
+    facts = _get_edgar_facts(cik)
+    ugaap = facts.get("facts", {}).get("us-gaap", {})
 
-    # ── Balance sheet (quarterly) ─────────────────────────────────────
-    balance = []
-    try:
-        bal_df = t.quarterly_balance_sheet
-        if bal_df is not None and not bal_df.empty:
-            for col in sorted(bal_df.columns, reverse=True)[:MAX_QUARTERS]:
-                s = bal_df[col]
-                period = str(col.date()) if hasattr(col, 'date') else str(col)[:10]
-                assets = _sv(s, 'Total Assets')
-                equity = _sv(s, 'Common Stock Equity', 'Stockholders Equity',
-                                'Total Equity Gross Minority Interest')
-                liab   = _sv(s, 'Total Liabilities Net Minority Interest', 'Total Liabilities')
-                if liab is None and assets is not None and equity is not None:
-                    liab = assets - equity
-                balance.append({
-                    'period':              period,
-                    'total_assets':        assets,
-                    'total_liabilities':   liab,
-                    'equity':              equity,
-                    'cash':                _sv(s, 'Cash And Cash Equivalents',
-                                               'Cash Cash Equivalents And Federal Funds Sold'),
-                    'total_debt':          _sv(s, 'Total Debt'),
-                    'current_assets':      _sv(s, 'Current Assets'),
-                    'current_liabilities': _sv(s, 'Current Liabilities'),
-                    'inventory':           _sv(s, 'Inventory'),
-                })
-    except Exception:
-        pass
+    income   = _build_income(ugaap)
+    balance  = _build_balance(ugaap)
+    cashflow = _build_cashflow(ugaap)
 
-    # ── Cash flow (quarterly) ─────────────────────────────────────────
-    cashflow = []
-    try:
-        cf_df = t.quarterly_cashflow
-        if cf_df is not None and not cf_df.empty:
-            for col in sorted(cf_df.columns, reverse=True)[:MAX_QUARTERS]:
-                s = cf_df[col]
-                period = str(col.date()) if hasattr(col, 'date') else str(col)[:10]
-                op_cf = _sv(s, 'Operating Cash Flow', 'Cash Flow From Continuing Operating Activities')
-                capex = _sv(s, 'Capital Expenditure')
-                fcf   = _sv(s, 'Free Cash Flow')
-                if fcf is None and op_cf is not None and capex is not None:
-                    fcf = op_cf + capex
-                cashflow.append({
-                    'period':         period,
-                    'operating_cf':   op_cf,
-                    'investing_cf':   _sv(s, 'Investing Cash Flow',
-                                          'Cash Flow From Continuing Investing Activities'),
-                    'financing_cf':   _sv(s, 'Financing Cash Flow',
-                                          'Cash Flow From Continuing Financing Activities'),
-                    'capex':          capex,
-                    'free_cash_flow': fcf,
-                })
-    except Exception:
-        pass
+    # Shares outstanding from most recent balance sheet (CommonStockSharesOutstanding)
+    shares_data = _first_ins(ugaap,
+        "CommonStockSharesOutstanding",
+        "SharesOutstanding",
+    )
+    if shares_data:
+        latest = max(shares_data.keys())
+        market["shares_outstanding"] = shares_data[latest]
 
     return {
-        'company':  company,
-        'market':   market,
-        'income':   income,
-        'balance':  balance,
-        'cashflow': cashflow,
+        "company":  company,
+        "market":   market,
+        "income":   income,
+        "balance":  balance,
+        "cashflow": cashflow,
     }
 
 
@@ -215,19 +407,19 @@ def _fetch_and_store(ticker: str) -> dict:
     conn = db.get_conn()
     try:
         db.upsert_company(ticker, {
-            'longName': data['company']['name'],
-            'sector':   data['company']['sector'],
-            'industry': data['company']['industry'],
-            'currency': data['company']['currency'],
-            'exchange': data['company']['exchange'],
+            "longName": data["company"]["name"],
+            "sector":   data["company"]["sector"],
+            "industry": data["company"]["industry"],
+            "currency": data["company"]["currency"],
+            "exchange": data["company"]["exchange"],
         }, conn=conn)
-        db.upsert_market_data(ticker, data['market'], conn=conn)
-        for row in data['income']:
-            db.upsert_income(ticker, row['period'], row, conn=conn)
-        for row in data['balance']:
-            db.upsert_balance(ticker, row['period'], row, conn=conn)
-        for row in data['cashflow']:
-            db.upsert_cashflow(ticker, row['period'], row, conn=conn)
+        db.upsert_market_data(ticker, data["market"], conn=conn)
+        for row in data["income"]:
+            db.upsert_income(ticker, row["period"], row, conn=conn)
+        for row in data["balance"]:
+            db.upsert_balance(ticker, row["period"], row, conn=conn)
+        for row in data["cashflow"]:
+            db.upsert_cashflow(ticker, row["period"], row, conn=conn)
         conn.commit()
     except Exception:
         conn.rollback()
