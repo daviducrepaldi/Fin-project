@@ -12,29 +12,26 @@ _DELAY_BETWEEN_CALLS = 3     # Pause between each subsequent financial statement
 _RETRY_DELAY_BASE = 4        # Base for fetch_only (UI path): 4s, 8s between retries
 
 # ── Module-level Yahoo Finance session ────────────────────────────────────────
-# Created once when this module is first imported (i.e. when Streamlit starts).
-# Visiting finance.yahoo.com sets cookies; the crumb is then fetched once inside
-# Ticker.__init__ and reused for the lifetime of the session — instead of
-# re-authenticating on every Ticker() call, which is what causes "Invalid Crumb".
+# Created once via yahooquery's own initialize_session() so it gets proper
+# browser impersonation, headers, consent-page handling, and cookies.
+# Ticker.__init__ then calls get_crumb() on this session to obtain a crumb.
+# If the crumb expires we discard the session and let the next Ticker() call
+# build a fresh one through yahooquery's own init path.
+from yahooquery.session_management import initialize_session as _yq_init_session
+
 try:
-    from curl_cffi import requests as _curl_requests
-    _YF_SESSION = _curl_requests.Session(impersonate="chrome")
-    _YF_SESSION.get("https://finance.yahoo.com", timeout=15)
+    _YF_SESSION = _yq_init_session()          # full cookie + header setup
 except Exception:
-    _curl_requests = None
-    _YF_SESSION = None  # fall back to yahooquery's default per-call session
+    _YF_SESSION = None
 
 
 def _refresh_session():
-    """Re-create the curl_cffi session to obtain a fresh crumb/cookie."""
+    """Discard the stale session and build a fresh one via yahooquery."""
     global _YF_SESSION
-    if _curl_requests is None:
-        return
     try:
-        _YF_SESSION = _curl_requests.Session(impersonate="chrome")
-        _YF_SESSION.get("https://finance.yahoo.com", timeout=15)
+        _YF_SESSION = _yq_init_session()
     except Exception:
-        _YF_SESSION = None
+        _YF_SESSION = None                    # let Ticker() build its own
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
