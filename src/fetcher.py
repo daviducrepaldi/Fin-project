@@ -64,6 +64,13 @@ _cik_cache: dict = {}   # ticker → zero-padded CIK, loaded once per process
 def _tiingo_key() -> str:
     key = os.environ.get("TIINGO_API_KEY", "").strip()
     if not key:
+        # Fallback: read from Streamlit secrets (always works inside Streamlit)
+        try:
+            import streamlit as st
+            key = st.secrets.get("TIINGO_API_KEY", "").strip()
+        except Exception:
+            pass
+    if not key:
         raise RuntimeError(
             "TIINGO_API_KEY not set. Add it to your .env file: TIINGO_API_KEY=<your_key>"
         )

@@ -1,3 +1,5 @@
+.env
+.streamlit/secrets.toml
 finance.db
 exports/
 __pycache__/
