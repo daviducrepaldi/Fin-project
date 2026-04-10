@@ -66,17 +66,23 @@ st.markdown("""
     background: var(--bg) !important;
     max-width: 100% !important;
 }
-/* Apply monospace to content elements — exclude Material Icons font so
-   Streamlit's internal expand/collapse chevrons render as glyphs, not text */
-body, p, div, span, h1, h2, h3, h4, h5, h6,
-button, input, select, textarea,
-td, th, li, label, caption, small,
-[data-testid], [class^="st"] {
+/* Font inheritance from root — no !important here so that icon spans
+   with their own explicit font-family declaration can still override it */
+.stApp { font-family: var(--font); }
+/* Explicit !important only on safe leaf/content elements that never
+   contain Material Icon text glyphs — span and div intentionally omitted */
+p, h1, h2, h3, h4, h5, h6,
+input, select, textarea,
+td, th, li, label, caption, small {
     font-family: var(--font) !important;
 }
-.material-icons, .material-icons-outlined, .material-icons-round,
-[class*="MaterialIcon"] {
-    font-family: 'Material Icons', 'Material Icons Outlined' !important;
+/* Streamlit-specific content containers (no icon children) */
+[data-testid="stMarkdownContainer"],
+[data-testid="stMetricValue"],
+[data-testid="stMetricLabel"],
+[data-testid="stCaptionContainer"],
+[data-testid="stDataFrameResizable"] {
+    font-family: var(--font) !important;
 }
 
 /* ── Headings ── */
@@ -97,10 +103,10 @@ p, li { color: var(--text); line-height: 1.5; font-size: 0.84rem; }
     background: var(--surface) !important;
     border-right: 1px solid var(--border);
 }
-[data-testid="stSidebar"] body, [data-testid="stSidebar"] p,
-[data-testid="stSidebar"] div, [data-testid="stSidebar"] span,
-[data-testid="stSidebar"] button, [data-testid="stSidebar"] input,
-[data-testid="stSidebar"] label, [data-testid="stSidebar"] td,
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] input,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] td,
 [data-testid="stSidebar"] th { font-family: var(--font) !important; }
 [data-testid="stSidebar"] p,
 [data-testid="stSidebar"] span,
@@ -657,14 +663,14 @@ for tab_idx, ticker in enumerate(all_results.keys()):
   {_caution_html}
 </div>
 """, unsafe_allow_html=True)
-                with st.expander("SCORE BREAKDOWN"):
-                    _rows = [
-                        {"Component": v["label"], "Score": f"{v['score']:.1f}",
-                         "Max": str(v["max"]), "%": f"{v['score'] / v['max'] * 100:.0f}%"}
-                        for v in _rating["breakdown"].values()
-                    ]
-                    st.dataframe(pd.DataFrame(_rows), use_container_width=True, hide_index=True)
-                    st.caption(_rating["disclaimer"])
+                _section_header("SCORE BREAKDOWN")
+                _rows = [
+                    {"Component": v["label"], "Score": f"{v['score']:.1f}",
+                     "Max": str(v["max"]), "%": f"{v['score'] / v['max'] * 100:.0f}%"}
+                    for v in _rating["breakdown"].values()
+                ]
+                st.dataframe(pd.DataFrame(_rows), use_container_width=True, hide_index=True)
+                st.caption(_rating["disclaimer"])
         except Exception as _e:
             st.warning(f"Rating error: {_e}")
 
