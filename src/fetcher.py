@@ -1,46 +1,61 @@
 import math
+import os
 import time
 from datetime import date
-from yahooquery import Ticker
+
+import requests
+
 from src import db
 
 MAX_QUARTERS = 16  # ~4 years
 
-# Delay constants
-_DELAY_AFTER_INFO = 5        # Extra breathing room after the info calls
-_DELAY_BETWEEN_CALLS = 3     # Pause between each subsequent financial statement fetch
-_RETRY_DELAY_BASE = 4        # Base for fetch_only (UI path): 4s, 8s between retries
-
-# ── Module-level Yahoo Finance session ────────────────────────────────────────
-# Created once via yahooquery's own initialize_session() so it gets proper
-# browser impersonation, headers, consent-page handling, and cookies.
-# Ticker.__init__ then calls get_crumb() on this session to obtain a crumb.
-# If the crumb expires we discard the session and let the next Ticker() call
-# build a fresh one through yahooquery's own init path.
-from yahooquery.session_management import initialize_session as _yq_init_session
-
-try:
-    _YF_SESSION = _yq_init_session()          # full cookie + header setup
-except Exception:
-    _YF_SESSION = None
+_RETRY_DELAY_BASE = 4
+_FMP_BASE = "https://financialmodelingprep.com/api/v3"
 
 
-def _refresh_session():
-    """Discard the stale session and build a fresh one via yahooquery."""
-    global _YF_SESSION
-    try:
-        _YF_SESSION = _yq_init_session()
-    except Exception:
-        _YF_SESSION = None                    # let Ticker() build its own
+def _api_key() -> str:
+    key = os.environ.get("FMP_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError(
+            "FMP_API_KEY environment variable is not set. "
+            "Get a free key at https://financialmodelingprep.com/register"
+        )
+    return key
+
+
+def _get(path: str, params: dict = None):
+    """GET a FMP endpoint; raise RuntimeError on non-2xx or API-level error."""
+    url = f"{_FMP_BASE}{path}"
+    p = {"apikey": _api_key()}
+    if params:
+        p.update(params)
+    resp = requests.get(url, params=p, timeout=15)
+    resp.raise_for_status()
+    data = resp.json()
+    if isinstance(data, dict):
+        msg = data.get("Error Message") or data.get("error")
+        if msg:
+            raise RuntimeError(str(msg))
+    return data
+
+
+def _safe(d: dict, *keys):
+    for k in keys:
+        v = d.get(k)
+        if v is None:
+            continue
+        try:
+            f = float(v)
+            return None if math.isnan(f) else f
+        except (TypeError, ValueError):
+            continue
+    return None
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def _retry(fn, ticker: str, retries: int, delay_base: int = 4, status_callback=None) -> dict:
-    """Call fn(ticker) up to `retries` times, sleeping delay_base * 2**attempt seconds
-    between attempts. If status_callback is provided it is called as
-    status_callback(attempt, delay, exc) before each sleep so callers can surface
-    retry progress to the UI. Raises the last exception if every attempt fails."""
+    """Call fn(ticker) up to `retries` times with exponential back-off."""
     last_exc = None
     for attempt in range(retries):
         try:
@@ -48,8 +63,6 @@ def _retry(fn, ticker: str, retries: int, delay_base: int = 4, status_callback=N
         except Exception as e:
             last_exc = e
             if attempt < retries - 1:
-                if 'crumb' in str(e).lower():
-                    _refresh_session()
                 delay = delay_base * 2 ** attempt
                 if status_callback:
                     status_callback(attempt, delay, e)
@@ -59,7 +72,7 @@ def _retry(fn, ticker: str, retries: int, delay_base: int = 4, status_callback=N
 
 def fetch_only(ticker: str, _retries: int = 3, status_callback=None) -> dict:
     """
-    Fetch from yahooquery and return a data dict. No DB writes, no disk writes.
+    Fetch from FMP and return a data dict. No DB writes, no disk writes.
     Use this for tickers that should not be persisted locally.
     """
     return _retry(_fetch_raw, ticker.upper(), _retries,
@@ -68,7 +81,7 @@ def fetch_only(ticker: str, _retries: int = 3, status_callback=None) -> dict:
 
 def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
     """
-    Fetch from yahooquery and persist to SQLite. Returns the same data dict as fetch_only.
+    Fetch from FMP and persist to SQLite. Returns the same data dict as fetch_only.
     Use this for pre-loaded tickers that should be stored in the DB and JSON files.
     """
     return _retry(_fetch_and_store, ticker.upper(), _retries, delay_base=8)
@@ -77,167 +90,105 @@ def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 def _fetch_raw(ticker: str) -> dict:
-    """
-    Core yahooquery fetch. Builds and returns the structured data dict without
-    touching the database or filesystem.
-    """
-    t = Ticker(ticker, timeout=15, session=_YF_SESSION)
+    """Core FMP fetch. Returns the structured data dict without touching the DB."""
 
-    # ── Company & market data ─────────────────────────────────────
-    # yahooquery returns a string (error message) instead of a dict on failure;
-    # _d() coerces non-dict responses to {} so subsequent .get() calls don't crash.
-    def _d(val):
-        return val if isinstance(val, dict) else {}
+    # ── Company profile + live quote ─────────────────────────────────
+    profile_list = _get(f"/profile/{ticker}")
+    if not profile_list:
+        raise RuntimeError(f"{ticker}: no data returned — invalid ticker or API limit reached")
+    profile = profile_list[0]
 
-    raw_price    = t.price.get(ticker)
-    price_data   = _d(raw_price)
-    detail_data  = _d(t.summary_detail.get(ticker))
-    key_stats    = _d(t.key_stats.get(ticker))
-    profile_data = _d(t.asset_profile.get(ticker))
-    time.sleep(_DELAY_AFTER_INFO)
+    quote_list = _get(f"/quote/{ticker}")
+    quote = quote_list[0] if quote_list else {}
 
-    # Detect empty/rate-limited response — surface the raw error string if available
-    if not price_data.get('longName') and not price_data.get('shortName') and not price_data.get('symbol'):
-        reason = raw_price if isinstance(raw_price, str) else "likely rate-limited or invalid ticker"
-        raise RuntimeError(f"{ticker}: {reason}")
+    # Latest-quarter key metrics (EV, ratios, dividend yield)
+    km_list = _get(f"/key-metrics/{ticker}", {"period": "quarter", "limit": 1})
+    km = km_list[0] if km_list else {}
 
     company = {
         'ticker':       ticker,
-        'name':         price_data.get('longName') or price_data.get('shortName', ticker),
-        'sector':       profile_data.get('sector', ''),
-        'industry':     profile_data.get('industry', ''),
-        'currency':     price_data.get('currency', ''),
-        'exchange':     price_data.get('exchangeName', ''),
+        'name':         profile.get('companyName', ticker),
+        'sector':       profile.get('sector', ''),
+        'industry':     profile.get('industry', ''),
+        'currency':     profile.get('currency', ''),
+        'exchange':     profile.get('exchangeShortName', ''),
         'last_updated': str(date.today()),
     }
 
-    def _safe(d, *keys):
-        for k in keys:
-            v = d.get(k)
-            if v is None:
-                continue
-            try:
-                f = float(v)
-                return None if math.isnan(f) else f
-            except (TypeError, ValueError):
-                continue
-        return None
-
     market = {
-        'market_cap':         _safe(price_data,  'marketCap'),
-        'enterprise_value':   _safe(key_stats,   'enterpriseValue'),
-        'shares_outstanding': _safe(key_stats,   'sharesOutstanding', 'impliedSharesOutstanding'),
-        'price':              _safe(price_data,  'regularMarketPrice'),
-        'pe_trailing':        _safe(detail_data, 'trailingPE'),
-        'pe_forward':         _safe(key_stats,   'forwardPE'),
-        'pb_ratio':           _safe(key_stats,   'priceToBook'),
-        'ev_ebitda_info':     _safe(key_stats,   'enterpriseToEbitda'),
-        'ev_revenue_info':    _safe(key_stats,   'enterpriseToRevenue'),
-        'dividend_yield':     _safe(detail_data, 'dividendYield'),
-        'beta':               _safe(detail_data, 'beta'),
-        'week52_high':        _safe(detail_data, 'fiftyTwoWeekHigh'),
-        'week52_low':         _safe(detail_data, 'fiftyTwoWeekLow'),
+        'market_cap':         _safe(quote,   'marketCap'),
+        'enterprise_value':   _safe(km,      'enterpriseValue'),
+        'shares_outstanding': _safe(km,      'sharesOutstanding'),
+        'price':              _safe(quote,   'price'),
+        'pe_trailing':        _safe(quote,   'pe'),
+        'pe_forward':         _safe(km,      'forwardPE'),
+        'pb_ratio':           _safe(km,      'pbRatio'),
+        'ev_ebitda_info':     _safe(km,      'evToEbitda'),
+        'ev_revenue_info':    _safe(km,      'evToSales'),
+        'dividend_yield':     _safe(km,      'dividendYield'),
+        'beta':               _safe(profile, 'beta'),
+        'week52_high':        _safe(quote,   'yearHigh'),
+        'week52_low':         _safe(quote,   'yearLow'),
     }
 
-    # ── Financial statement helpers ───────────────────────────────
-    def _row_val(row, *keys):
-        for k in keys:
-            v = row.get(k)
-            if v is None or (isinstance(v, float) and math.isnan(v)):
-                continue
-            try:
-                return float(v)
-            except (TypeError, ValueError):
-                continue
-        return None
-
-    def _parse_period(val):
-        if hasattr(val, 'date'):
-            return str(val.date())
-        return str(val)[:10]
-
-    # ── Income statement (quarterly) ──────────────────────────────
+    # ── Income statement (quarterly) ──────────────────────────────────
     income = []
-    try:
-        inc_df = t.income_statement(frequency='q')
-        time.sleep(_DELAY_BETWEEN_CALLS)
-        if inc_df is not None and not inc_df.empty and 'asOfDate' in inc_df.columns:
-            for _, row in inc_df.sort_values('asOfDate', ascending=False).head(MAX_QUARTERS).iterrows():
-                period = _parse_period(row['asOfDate'])
-                op = _row_val(row, 'OperatingIncome', 'EBIT')
-                da = _row_val(row, 'ReconciledDepreciation', 'DepreciationAmortizationDepletion')
-                eb = _row_val(row, 'EBITDA', 'NormalizedEBITDA')
-                if eb is None and op is not None and da is not None:
-                    eb = op + da
-                income.append({
-                    'period':                    period,
-                    'revenue':                   _row_val(row, 'TotalRevenue'),
-                    'gross_profit':              _row_val(row, 'GrossProfit'),
-                    'operating_income':          op,
-                    'net_income':                _row_val(row, 'NetIncome', 'NetIncomeCommonStockholders'),
-                    'ebitda':                    eb,
-                    'interest_expense':          _row_val(row, 'InterestExpense', 'InterestExpenseNonOperating'),
-                    'depreciation_amortization': da,
-                })
-    except Exception:
-        time.sleep(_DELAY_BETWEEN_CALLS)
+    for row in _get(f"/income-statement/{ticker}", {"period": "quarter", "limit": MAX_QUARTERS}):
+        period = str(row.get('date', ''))[:10]
+        op = _safe(row, 'operatingIncome')
+        da = _safe(row, 'depreciationAndAmortization')
+        eb = _safe(row, 'ebitda')
+        if eb is None and op is not None and da is not None:
+            eb = op + da
+        income.append({
+            'period':                    period,
+            'revenue':                   _safe(row, 'revenue'),
+            'gross_profit':              _safe(row, 'grossProfit'),
+            'operating_income':          op,
+            'net_income':                _safe(row, 'netIncome'),
+            'ebitda':                    eb,
+            'interest_expense':          _safe(row, 'interestExpense'),
+            'depreciation_amortization': da,
+        })
 
-    # ── Balance sheet (quarterly) ─────────────────────────────────
+    # ── Balance sheet (quarterly) ─────────────────────────────────────
     balance = []
-    try:
-        bal_df = t.balance_sheet(frequency='q')
-        time.sleep(_DELAY_BETWEEN_CALLS)
-        if bal_df is not None and not bal_df.empty and 'asOfDate' in bal_df.columns:
-            for _, row in bal_df.sort_values('asOfDate', ascending=False).head(MAX_QUARTERS).iterrows():
-                period = _parse_period(row['asOfDate'])
-                assets = _row_val(row, 'TotalAssets')
-                equity = _row_val(row, 'StockholdersEquity', 'CommonStockEquity',
-                                  'TotalEquityGrossMinorityInterest')
-                liab   = _row_val(row, 'TotalLiabilitiesNetMinorityInterest', 'TotalLiab')
-                if liab is None and assets is not None and equity is not None:
-                    liab = assets - equity
-                balance.append({
-                    'period':              period,
-                    'total_assets':        assets,
-                    'total_liabilities':   liab,
-                    'equity':              equity,
-                    'cash':                _row_val(row, 'CashAndCashEquivalents',
-                                                    'CashCashEquivalentsAndShortTermInvestments'),
-                    'total_debt':          _row_val(row, 'TotalDebt',
-                                                    'LongTermDebtAndCapitalLeaseObligation'),
-                    'current_assets':      _row_val(row, 'CurrentAssets'),
-                    'current_liabilities': _row_val(row, 'CurrentLiabilities'),
-                    'inventory':           _row_val(row, 'Inventory'),
-                })
-    except Exception:
-        time.sleep(_DELAY_BETWEEN_CALLS)
+    for row in _get(f"/balance-sheet-statement/{ticker}", {"period": "quarter", "limit": MAX_QUARTERS}):
+        period = str(row.get('date', ''))[:10]
+        assets = _safe(row, 'totalAssets')
+        equity = _safe(row, 'totalStockholdersEquity')
+        liab   = _safe(row, 'totalLiabilities')
+        if liab is None and assets is not None and equity is not None:
+            liab = assets - equity
+        balance.append({
+            'period':              period,
+            'total_assets':        assets,
+            'total_liabilities':   liab,
+            'equity':              equity,
+            'cash':                _safe(row, 'cashAndCashEquivalents'),
+            'total_debt':          _safe(row, 'totalDebt'),
+            'current_assets':      _safe(row, 'totalCurrentAssets'),
+            'current_liabilities': _safe(row, 'totalCurrentLiabilities'),
+            'inventory':           _safe(row, 'inventory'),
+        })
 
-    # ── Cash flow (quarterly) ─────────────────────────────────────
+    # ── Cash flow (quarterly) ─────────────────────────────────────────
     cashflow = []
-    try:
-        cf_df = t.cash_flow(frequency='q')
-        time.sleep(_DELAY_BETWEEN_CALLS)
-        if cf_df is not None and not cf_df.empty and 'asOfDate' in cf_df.columns:
-            for _, row in cf_df.sort_values('asOfDate', ascending=False).head(MAX_QUARTERS).iterrows():
-                period = _parse_period(row['asOfDate'])
-                op_cf = _row_val(row, 'OperatingCashFlow',
-                                 'CashFlowFromContinuingOperatingActivities')
-                capex = _row_val(row, 'CapitalExpenditure')
-                fcf   = _row_val(row, 'FreeCashFlow')
-                if fcf is None and op_cf is not None and capex is not None:
-                    fcf = op_cf + capex
-                cashflow.append({
-                    'period':         period,
-                    'operating_cf':   op_cf,
-                    'investing_cf':   _row_val(row, 'InvestingCashFlow',
-                                               'CashFlowFromContinuingInvestingActivities'),
-                    'financing_cf':   _row_val(row, 'FinancingCashFlow',
-                                               'CashFlowFromContinuingFinancingActivities'),
-                    'capex':          capex,
-                    'free_cash_flow': fcf,
-                })
-    except Exception:
-        time.sleep(_DELAY_BETWEEN_CALLS)
+    for row in _get(f"/cash-flow-statement/{ticker}", {"period": "quarter", "limit": MAX_QUARTERS}):
+        period = str(row.get('date', ''))[:10]
+        op_cf = _safe(row, 'operatingCashFlow')
+        capex = _safe(row, 'capitalExpenditure')
+        fcf   = _safe(row, 'freeCashFlow')
+        if fcf is None and op_cf is not None and capex is not None:
+            fcf = op_cf + capex
+        cashflow.append({
+            'period':         period,
+            'operating_cf':   op_cf,
+            'investing_cf':   _safe(row, 'investingCashFlow'),
+            'financing_cf':   _safe(row, 'financingCashFlow'),
+            'capex':          capex,
+            'free_cash_flow': fcf,
+        })
 
     return {
         'company':  company,
@@ -254,7 +205,6 @@ def _fetch_and_store(ticker: str) -> dict:
 
     conn = db.get_conn()
     try:
-        # upsert_company expects yfinance-style info keys; adapt from our structured dict
         db.upsert_company(ticker, {
             'longName': data['company']['name'],
             'sector':   data['company']['sector'],
