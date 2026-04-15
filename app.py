@@ -30,7 +30,8 @@ import pandas as pd
 from src import db, fetcher, analyzer
 from src.utils import period_to_quarter_label, clean_for_json
 
-db.init_db()   # ensure SQLite tables exist (no-op if already created)
+# db.init_db() intentionally not called here — the web app reads from JSON files,
+# not SQLite. Init is only needed by the CLI (main.py).
 
 AVAILABLE_TICKERS = ['AAPL', 'AMZN', 'GOOGL', 'JPM', 'META', 'MSFT', 'NVDA', 'TSLA']
 DATA_DIR = Path(__file__).parent / 'data'

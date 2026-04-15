@@ -81,21 +81,6 @@ def _tiingo_key() -> str:
         except Exception:
             pass
 
-    # 3. Re-read .env directly using inspect (most reliable path)
-    if not key:
-        import inspect
-        from pathlib import Path
-        src_dir = Path(inspect.getfile(_tiingo_key)).resolve().parent
-        env_path = src_dir.parent / ".env"
-        try:
-            with open(env_path) as _f:
-                for _line in _f:
-                    if _line.strip().startswith("TIINGO_API_KEY="):
-                        key = _line.strip().split("=", 1)[1].strip()
-                        break
-        except OSError:
-            pass
-
     if not key:
         raise RuntimeError(
             "TIINGO_API_KEY not set. Add it to your .env file: TIINGO_API_KEY=<your_key>"

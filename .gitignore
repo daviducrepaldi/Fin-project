@@ -6,3 +6,4 @@ __pycache__/
 *.pyc
 .DS_Store
 seed_data.json
+debug_fetch.py
