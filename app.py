@@ -1,5 +1,7 @@
+import html
 import json
 import os
+import re
 import time
 from pathlib import Path
 
@@ -346,7 +348,9 @@ def _section_header(label: str):
 
 def _load_file(ticker: str):
     """Load pre-fetched data from data/{TICKER}.json. Returns None if not found."""
-    path = DATA_DIR / f'{ticker}.json'
+    path = (DATA_DIR / f'{ticker}.json').resolve()
+    if path.parent != DATA_DIR.resolve():
+        return None  # path escaped data/ — should never happen after ticker validation
     try:
         with open(path) as f:
             return json.load(f)
@@ -356,8 +360,11 @@ def _load_file(ticker: str):
 
 def _save_file(ticker: str, data: dict):
     """Write data back to data/{TICKER}.json (works locally; silent no-op on Cloud)."""
+    path = (DATA_DIR / f'{ticker}.json').resolve()
+    if path.parent != DATA_DIR.resolve():
+        return  # path escaped data/ — refuse to write
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    with open(DATA_DIR / f'{ticker}.json', 'w') as f:
+    with open(path, 'w') as f:
         json.dump(clean_for_json(data), f, indent=2)
 
 
@@ -397,11 +404,8 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
                 return (data, result), None   # silent fallback to pre-fetched JSON
             if ticker in AVAILABLE_TICKERS:
                 return None, f"Live fetch failed for **{ticker}** and no cached data found. Run `python prefetch_data.py --tickers {ticker}` to rebuild it."
-            reason = str(e) if str(e) else type(e).__name__
-            return None, (
-                f"Live fetch failed for **{ticker}**.\n\n"
-                f"**Reason:** {reason}\n\nWait a moment and try again."
-            )
+            print(f"FETCH ERROR [force_refresh fallback] {ticker}: {type(e).__name__}: {e}")
+            return None, f"Live fetch failed for **{ticker}**. Wait a moment and try again."
 
     # Default: load from static file
     data = _load_file(ticker)
@@ -429,11 +433,9 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
     except Exception as e:
         print(f"FETCH ERROR [analyze] {ticker}: {type(e).__name__}: {e}")
         available = '  ·  '.join(AVAILABLE_TICKERS)
-        reason = str(e) if str(e) else type(e).__name__
         return None, (
-            f"Could not fetch **{ticker}**.\n\n"
-            f"**Reason:** {reason}\n\n"
-            f"Wait a moment and try again.\n\nPre-loaded (instant): {available}"
+            f"Could not fetch **{ticker}**. Wait a moment and try again.\n\n"
+            f"Pre-loaded (instant): {available}"
         )
 
 
@@ -470,6 +472,9 @@ with st.sidebar:
 
 MAX_TICKERS = 5
 tickers = [t.strip().upper() for t in tickers_input.split() if t.strip()]
+# Reject anything that isn't a plain ticker (letters only, 1-10 chars).
+# Prevents path traversal like "../app" reaching the data/ file loader.
+tickers = [t for t in tickers if re.match(r'^[A-Z]{1,10}$', t)]
 if len(tickers) > MAX_TICKERS:
     st.warning(f"Showing first {MAX_TICKERS} tickers only.")
     tickers = tickers[:MAX_TICKERS]
@@ -599,12 +604,19 @@ for tab_idx, ticker in enumerate(all_results.keys()):
         sector   = company.get("sector", "")
         industry = company.get("industry", "")
 
+        # Escape all API-sourced / user-input strings before HTML interpolation.
+        s_ticker   = html.escape(ticker)
+        s_name     = html.escape(name)
+        s_sector   = html.escape(sector)
+        s_industry = html.escape(industry)
+        s_currency = html.escape(company.get("currency", "USD"))
+
         # ── header ────────────────────────────────────────────────
         st.markdown(
             f'<div style="font-family:\'IBM Plex Mono\',monospace;">'
             f'<span style="color:#ff6600;font-size:1.05rem;font-weight:600;'
-            f'letter-spacing:0.06em;text-transform:uppercase;">{ticker}</span>'
-            f'<span style="color:#888;font-size:0.82rem;margin-left:0.6rem;">— {name}</span>'
+            f'letter-spacing:0.06em;text-transform:uppercase;">{s_ticker}</span>'
+            f'<span style="color:#888;font-size:0.82rem;margin-left:0.6rem;">— {s_name}</span>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -612,7 +624,7 @@ for tab_idx, ticker in enumerate(all_results.keys()):
             st.markdown(
                 f'<div style="color:#888;font-size:0.68rem;font-family:\'IBM Plex Mono\',monospace;'
                 f'letter-spacing:0.04em;margin-bottom:0.1rem;">'
-                f'{sector} · {industry} · {company.get("currency","USD")}</div>',
+                f'{s_sector} · {s_industry} · {s_currency}</div>',
                 unsafe_allow_html=True,
             )
 
@@ -621,7 +633,7 @@ for tab_idx, ticker in enumerate(all_results.keys()):
             f'<div style="background:#111;border:1px solid #2a2a2a;border-top:2px solid #ff6600;'
             f'padding:0.2rem 0.6rem;font-family:\'IBM Plex Mono\',monospace;font-size:0.62rem;'
             f'color:#ff6600;letter-spacing:0.1em;text-transform:uppercase;margin:0.3rem 0 0.2rem;">'
-            f'MARKET DATA · {ticker}</div>',
+            f'MARKET DATA · {s_ticker}</div>',
             unsafe_allow_html=True,
         )
 
@@ -672,7 +684,8 @@ for tab_idx, ticker in enumerate(all_results.keys()):
                 st.dataframe(pd.DataFrame(_rows), use_container_width=True, hide_index=True)
                 st.caption(_rating["disclaimer"])
         except Exception as _e:
-            st.warning(f"Rating error: {_e}")
+            print(f"RATING ERROR {ticker}: {type(_e).__name__}: {_e}")
+            st.warning("Rating unavailable for this ticker.")
 
         if not quarters:
             st.info("No quarterly data available for this ticker.")
@@ -835,10 +848,11 @@ for tab_idx, ticker in enumerate(all_results.keys()):
 if len(all_results) > 1:
     with tabs[-1]:
         ticker_list = list(all_results.keys())
+        s_ticker_list = " · ".join(html.escape(t) for t in ticker_list)
         st.markdown(
             f'<div style="font-family:\'IBM Plex Mono\',monospace;">'
             f'<span style="color:#ff6600;font-size:1.0rem;font-weight:600;'
-            f'letter-spacing:0.06em;text-transform:uppercase;">COMPARISON: {" · ".join(ticker_list)}</span>'
+            f'letter-spacing:0.06em;text-transform:uppercase;">COMPARISON: {s_ticker_list}</span>'
             f'</div>',
             unsafe_allow_html=True,
         )
