@@ -406,6 +406,16 @@ def _build_income(ugaap: dict, ifrs: dict) -> list:
         "RevenueFromContractsWithCustomers",
     )
     gp = _dur("GrossProfit")
+    # Many filers (e.g. Amazon) report cost of revenue but no GrossProfit
+    # tag — derive it. Companies with no COGS line at all (Visa, banks)
+    # correctly end up with no gross margin.
+    cogs = _dur(
+        "CostOfRevenue",
+        "CostOfGoodsAndServicesSold",
+        "CostOfGoodsSold",
+        "CostOfSales",
+        "CostOfServices",
+    )
     op = _dur(
         "OperatingIncomeLoss",
         "ProfitLossFromOperatingActivities",
@@ -438,10 +448,15 @@ def _build_income(ugaap: dict, ifrs: dict) -> list:
         o = op.get(period)
         d = da.get(period)
         ebitda = (o + d) if (o is not None and d is not None) else None
+        g = gp.get(period)
+        if g is None:
+            r, c = revenue.get(period), cogs.get(period)
+            if r is not None and c is not None:
+                g = r - c
         result.append({
             "period":                    period,
             "revenue":                   revenue.get(period),
-            "gross_profit":              gp.get(period),
+            "gross_profit":              g,
             "operating_income":          o,
             "net_income":                ni.get(period),
             "ebitda":                    ebitda,

@@ -122,3 +122,55 @@ class TestConceptMigrationMerge:
         merged = _first_ins(tax, "StockholdersEquity",
                             "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest")
         assert merged == {"2017-03-31": 10.0, "2025-03-31": 90.0}
+
+
+class TestGrossProfitDerivation:
+    def test_gross_profit_derived_from_revenue_minus_cogs(self):
+        # Amazon-style filer: cost of revenue reported, GrossProfit tag absent
+        from src.fetcher import _build_income
+        ugaap = {
+            "Revenues": _concept([
+                _dp("2025-01-01", "2025-03-31", 1000, "10-Q", "2025-04-15"),
+            ]),
+            "NetIncomeLoss": _concept([
+                _dp("2025-01-01", "2025-03-31", 100, "10-Q", "2025-04-15"),
+            ]),
+            "CostOfGoodsAndServicesSold": _concept([
+                _dp("2025-01-01", "2025-03-31", 600, "10-Q", "2025-04-15"),
+            ]),
+        }
+        rows = _build_income(ugaap, {})
+        assert rows[0]["gross_profit"] == 400.0
+
+    def test_reported_gross_profit_preferred_over_derivation(self):
+        from src.fetcher import _build_income
+        ugaap = {
+            "Revenues": _concept([
+                _dp("2025-01-01", "2025-03-31", 1000, "10-Q", "2025-04-15"),
+            ]),
+            "NetIncomeLoss": _concept([
+                _dp("2025-01-01", "2025-03-31", 100, "10-Q", "2025-04-15"),
+            ]),
+            "GrossProfit": _concept([
+                _dp("2025-01-01", "2025-03-31", 450, "10-Q", "2025-04-15"),
+            ]),
+            "CostOfGoodsAndServicesSold": _concept([
+                _dp("2025-01-01", "2025-03-31", 600, "10-Q", "2025-04-15"),
+            ]),
+        }
+        rows = _build_income(ugaap, {})
+        assert rows[0]["gross_profit"] == 450.0
+
+    def test_no_cogs_means_no_gross_profit(self):
+        # Visa-style filer: no COGS line at all → gross profit stays None
+        from src.fetcher import _build_income
+        ugaap = {
+            "Revenues": _concept([
+                _dp("2025-01-01", "2025-03-31", 1000, "10-Q", "2025-04-15"),
+            ]),
+            "NetIncomeLoss": _concept([
+                _dp("2025-01-01", "2025-03-31", 100, "10-Q", "2025-04-15"),
+            ]),
+        }
+        rows = _build_income(ugaap, {})
+        assert rows[0]["gross_profit"] is None

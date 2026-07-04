@@ -840,9 +840,15 @@ for tab_idx, ticker in enumerate(all_results.keys()):
         for _c in table_df.columns:
             if _c != "Period":
                 table_df[_c] = pd.to_numeric(table_df[_c], errors="coerce")
+        # Hide metrics the company doesn't report at all (e.g. Visa has no
+        # cost-of-goods line, so gross margin is undefined, not missing).
+        table_df = table_df.drop(columns=[
+            c for c in table_df.columns
+            if c != "Period" and table_df[c].isna().all()
+        ])
         st.dataframe(
             table_df.style.format(
-                {c: "{:.1f}" for c in display_cols.values() if c != "Period"},
+                {c: "{:.1f}" for c in table_df.columns if c != "Period"},
                 na_rep="N/A",
             ),
             use_container_width=True,
