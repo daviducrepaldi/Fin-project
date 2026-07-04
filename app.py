@@ -834,6 +834,12 @@ for tab_idx, ticker in enumerate(all_results.keys()):
             .rename(columns=display_cols)
             .reset_index(drop=True)
         )
+        # All-None columns arrive as object dtype and can render as the literal
+        # string "None" in st.dataframe; coerce to float so missing values are
+        # real NaN and na_rep applies.
+        for _c in table_df.columns:
+            if _c != "Period":
+                table_df[_c] = pd.to_numeric(table_df[_c], errors="coerce")
         st.dataframe(
             table_df.style.format(
                 {c: "{:.1f}" for c in display_cols.values() if c != "Period"},

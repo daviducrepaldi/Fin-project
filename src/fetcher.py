@@ -328,27 +328,40 @@ def _fill_missing_q4(quarterly: dict, concept: dict) -> dict:
 
 
 def _first_dur(tax: dict, *names) -> dict:
-    """Try quarterly duration first; fall back to annual (for 20-F filers)."""
+    """
+    Merge quarterly durations across all candidate concept names, with
+    earlier-listed names winning when the same period appears twice.
+    Companies migrate tags over time (e.g. Visa's revenue moved from
+    "Revenues" to "RevenueFromContractWithCustomerExcludingAssessedTax"
+    in 2018) — taking the first non-empty concept would return only the
+    stale pre-migration years and leave every recent quarter empty.
+    Falls back to annual durations (20-F filers) when no quarterly data.
+    """
+    merged: dict = {}
     for name in names:
         if name in tax:
-            vals = _quarterly_duration(tax[name])
-            if vals:
-                return _fill_missing_q4(vals, tax[name])
+            for k, v in _quarterly_duration(tax[name]).items():
+                merged.setdefault(k, v)
+    if merged:
+        for name in names:
+            if name in tax:
+                merged = _fill_missing_q4(merged, tax[name])
+        return merged
     for name in names:
         if name in tax:
-            vals = _annual_duration(tax[name])
-            if vals:
-                return vals
-    return {}
+            for k, v in _annual_duration(tax[name]).items():
+                merged.setdefault(k, v)
+    return merged
 
 
 def _first_ins(tax: dict, *names) -> dict:
+    """Merge instant values across candidate names (see _first_dur on why)."""
+    merged: dict = {}
     for name in names:
         if name in tax:
-            vals = _quarterly_instant(tax[name])
-            if vals:
-                return vals
-    return {}
+            for k, v in _quarterly_instant(tax[name]).items():
+                merged.setdefault(k, v)
+    return merged
 
 
 def _ttm(by_period: dict, n: int = 4):
@@ -405,6 +418,7 @@ def _build_income(ugaap: dict, ifrs: dict) -> list:
     )
     ie = _dur(
         "InterestExpense",
+        "InterestExpenseNonoperating",
         "InterestAndDebtExpense",
         "InterestExpenseDebt",
         "FinanceCosts",
