@@ -663,6 +663,11 @@ for tab_idx, ticker in enumerate(all_results.keys()):
             _rating = analyzer.compute_rating(result)
             if _rating and _rating.get("rating") != "N/A":
                 _r, _score = _rating["rating"], _rating["score"]
+                _profile = _rating.get("sector_profile") or "general"
+                _profile_html = (
+                    f'<span style="color:#666;font-size:0.68rem;margin-left:0.6rem;">'
+                    f'VS {html.escape(_profile.replace("_", " ").upper())} THRESHOLDS</span>'
+                )
                 _caution_html = (
                     '<span style="color:#666;font-size:0.72rem;">'
                     '(LIMITED DATA — TREAT WITH CAUTION)</span>'
@@ -681,6 +686,7 @@ for tab_idx, ticker in enumerate(all_results.keys()):
   <span style="color:{_accent};font-size:0.88rem;font-weight:600;letter-spacing:0.12em;">{_r}</span>
   <span style="color:#888;font-size:0.78rem;margin:0 0.6rem;">·</span>
   <span style="color:#e0e0e0;font-size:0.78rem;">SCORE:&nbsp;<span style="color:{_accent};font-weight:600;">{_score:.1f}</span>/100</span>
+  {_profile_html}
   {_caution_html}
 </div>
 """, unsafe_allow_html=True)
@@ -835,6 +841,11 @@ for tab_idx, ticker in enumerate(all_results.keys()):
             ),
             use_container_width=True,
             hide_index=True,
+        )
+        st.caption(
+            "Quarters are labeled by calendar period end. Companies with offset "
+            "fiscal years (e.g. AAPL's year ends in September) show fiscal quarters "
+            "under the calendar label."
         )
 
         # ── YoY trends ─────────────────────────────────────────────

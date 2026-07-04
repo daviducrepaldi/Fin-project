@@ -90,6 +90,9 @@ def _make_data():
             'pb_ratio':         3.5,
             'ev_ebitda_info':   14.0,
             'beta':             1.1,
+            'price':            50.0,
+            'week52_high':      60.0,
+            'week52_low':       35.0,
         },
         'company': {
             'ticker': 'TEST',
@@ -416,8 +419,8 @@ class TestTTMContiguity:
 
 class TestRatingGrowthSmoothing:
     def test_growth_uses_average_of_recent_quarters(self):
-        # Two YoY datapoints: +30% and +10% → average 20% → 20 pts, not the
-        # 25 pts a single +30% quarter would earn.
+        # Two YoY datapoints: +30% and +10% → average 20% → 16 pts, not the
+        # 20 pts a single +30% quarter would earn.
         data = _data_from_periods([
             ('2024-12-31', 1_300_000_000),
             ('2024-09-30', 1_100_000_000),
@@ -428,4 +431,73 @@ class TestRatingGrowthSmoothing:
         ])
         result = compute_ratios(data)
         rating = compute_rating(result)
-        assert rating['breakdown']['growth']['score'] == 20.0
+        assert rating['breakdown']['growth']['score'] == 16.0
+        assert rating['breakdown']['growth']['max'] == 20
+
+
+# ── sector-relative rating & momentum ────────────────────────────────────────
+
+class TestSectorClassification:
+    def test_sic_code_takes_priority(self):
+        from src.utils import classify_sector
+        assert classify_sector({'sic': '6022'}) == 'financials'
+        assert classify_sector({'sic': '3674'}) == 'technology'
+        assert classify_sector({'sic': '2911'}) == 'energy'
+        assert classify_sector({'sic': '4911'}) == 'utilities'
+
+    def test_text_fallback_for_legacy_data(self):
+        from src.utils import classify_sector
+        assert classify_sector({'sector': 'Financial Services', 'industry': 'Banks'}) == 'financials'
+        assert classify_sector({'sector': 'Technology', 'industry': 'Consumer Electronics'}) == 'technology'
+        assert classify_sector({'sector': '', 'industry': ''}) == 'general'
+
+    def test_unknown_sic_falls_back_to_text(self):
+        from src.utils import classify_sector
+        assert classify_sector({'sic': '0100', 'sector': 'Energy'}) == 'energy'
+
+
+class TestSectorRelativeRating:
+    def test_financials_skip_ev_and_fcf_yield(self):
+        # A bank with a P/E of 12 and P/B of 1.2 should score decently on
+        # valuation even though EV/EBITDA and FCF yield are excluded.
+        data = _make_data()
+        data['company'] = {'ticker': 'BANK', 'sector': 'Financial Services', 'industry': 'Banks'}
+        data['market']['pe_trailing'] = 12.0
+        data['market']['pb_ratio'] = 1.2
+        result = compute_ratios(data)
+        rating = compute_rating(result)
+        assert rating['sector_profile'] == 'financials'
+        # pe 12 → 6/8, pb 1.2 → 3/4 ⇒ (6+3)/(8+4)*25 = 18.75 → 18.8
+        assert rating['breakdown']['valuation']['score'] == 18.8
+
+    def test_same_metrics_score_differently_by_sector(self):
+        data_tech = _make_data()
+        data_gen  = _make_data()
+        data_gen['company'] = {'ticker': 'GEN', 'sector': '', 'industry': ''}
+        r_tech = compute_rating(compute_ratios(data_tech))
+        r_gen  = compute_rating(compute_ratios(data_gen))
+        # P/E 22.5 is mid-range for tech but expensive for the general profile
+        assert r_tech['breakdown']['valuation']['score'] > r_gen['breakdown']['valuation']['score']
+
+
+class TestMomentum:
+    def test_momentum_from_52w_position(self):
+        data = _make_data()
+        # price 50 in a 35–60 range → position 0.6 → 12/15
+        rating = compute_rating(compute_ratios(data))
+        assert rating['breakdown']['momentum']['score'] == 12.0
+        assert rating['breakdown']['momentum']['max'] == 15
+
+    def test_momentum_near_low(self):
+        data = _make_data()
+        data['market']['price'] = 36.0   # position 0.04 → 1 pt
+        rating = compute_rating(compute_ratios(data))
+        assert rating['breakdown']['momentum']['score'] == 1.0
+
+    def test_missing_52w_data_degrades_quality_not_crash(self):
+        data = _make_data()
+        for k in ('price', 'week52_high', 'week52_low'):
+            data['market'].pop(k, None)
+        rating = compute_rating(compute_ratios(data))
+        assert rating['rating'] in ('BUY', 'HOLD', 'SELL')
+        assert rating['data_quality'] == 'partial'

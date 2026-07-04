@@ -321,30 +321,93 @@ def _score_bracket_high(value, brackets):
 
 # ── Buy/Hold/Sell rating ──────────────────────────────────────────────────────
 
+# Sector-relative valuation thresholds. A P/E of 25 is expensive for a bank
+# and unremarkable for a semiconductor company; each bucket gets its own
+# brackets. 'skip' marks metrics that are meaningless for the sector
+# (EV/EBITDA and FCF yield for financials — debt is their raw material).
+_VAL_PROFILES = {
+    'general': {
+        'pe':   [(12, 8), (18, 6), (25, 4), (35, 2), (50, 1)],
+        'ev':   [(8, 6), (12, 5), (18, 3), (25, 1)],
+        'fcfy': [(8, 7), (5, 5), (3, 3), (1.5, 2), (0, 1)],
+        'pb':   [(1.5, 4), (3, 3), (5, 2), (10, 1)],
+    },
+    'technology': {
+        'pe':   [(18, 8), (25, 6), (35, 4), (45, 2), (60, 1)],
+        'ev':   [(12, 6), (16, 5), (22, 3), (30, 1)],
+        'fcfy': [(6, 7), (4, 5), (2.5, 3), (1, 2), (0, 1)],
+        'pb':   [(5, 4), (8, 3), (12, 2), (20, 1)],
+    },
+    'healthcare': {
+        'pe':   [(16, 8), (22, 6), (30, 4), (40, 2), (55, 1)],
+        'ev':   [(10, 6), (14, 5), (20, 3), (28, 1)],
+        'fcfy': [(7, 7), (4.5, 5), (2.5, 3), (1, 2), (0, 1)],
+        'pb':   [(3, 4), (5, 3), (8, 2), (14, 1)],
+    },
+    'financials': {
+        'pe':   [(10, 8), (14, 6), (18, 4), (25, 2), (35, 1)],
+        'ev':   'skip',
+        'fcfy': 'skip',
+        'pb':   [(1.0, 4), (1.5, 3), (2.5, 2), (4, 1)],
+    },
+    'real_estate': {
+        'pe':   [(14, 8), (20, 6), (28, 4), (38, 2), (50, 1)],
+        'ev':   [(14, 6), (18, 5), (24, 3), (32, 1)],
+        'fcfy': 'skip',   # capex-heavy; FFO would be the right lens, not FCF
+        'pb':   [(1.2, 4), (2, 3), (3, 2), (5, 1)],
+    },
+    'utilities': {
+        'pe':   [(14, 8), (18, 6), (22, 4), (28, 2), (35, 1)],
+        'ev':   [(9, 6), (12, 5), (15, 3), (20, 1)],
+        'fcfy': [(6, 7), (4, 5), (2, 3), (0.5, 2), (0, 1)],
+        'pb':   [(1.3, 4), (2, 3), (3, 2), (5, 1)],
+    },
+    'energy': {
+        'pe':   [(8, 8), (12, 6), (16, 4), (25, 2), (35, 1)],
+        'ev':   [(5, 6), (7, 5), (10, 3), (14, 1)],
+        'fcfy': [(10, 7), (7, 5), (4, 3), (2, 2), (0, 1)],
+        'pb':   [(1.2, 4), (2, 3), (3, 2), (5, 1)],
+    },
+    'consumer': {
+        'pe':   [(14, 8), (20, 6), (28, 4), (38, 2), (50, 1)],
+        'ev':   [(9, 6), (13, 5), (18, 3), (25, 1)],
+        'fcfy': [(7, 7), (4.5, 5), (2.5, 3), (1, 2), (0, 1)],
+        'pb':   [(2.5, 4), (4.5, 3), (7, 2), (12, 1)],
+    },
+}
+
+
 def compute_rating(result: dict) -> dict:
     """
     Compute a Buy/Hold/Sell rating from an already-computed result dict.
 
     Scoring model (100 pts total):
-      Valuation     30 pts  — P/E trailing (9), EV/EBITDA (8), FCF yield (8), P/B (5)
-      Profitability 30 pts  — Net Margin TTM (15), ROE TTM (15)
-      Growth        25 pts  — Revenue YoY %, averaged over up to 4 recent quarters
-                              (a single quarter is too noisy to drive 25% of the score)
+      Valuation     25 pts  — P/E trailing (8), EV/EBITDA (6), FCF yield (7), P/B (4)
+                              scored against sector-relative thresholds
+      Profitability 25 pts  — Net Margin TTM (10), ROE TTM (10), margin trend (5)
+      Growth        20 pts  — Revenue YoY %, averaged over up to 4 recent quarters
+                              (a single quarter is too noisy to drive the score)
       Health        15 pts  — Current Ratio (6), Debt/Equity (6), Interest Coverage (3)
+      Momentum      15 pts  — position of price within the 52-week range
 
     Thresholds: score >= 65 → BUY, >= 40 → HOLD, < 40 → SELL
     Missing inputs are skipped and the component score is proportionally rescaled.
     """
+    from src.utils import classify_sector
     _DISCLAIMER = "Quantitative signal for educational purposes only. Not financial advice."
 
     if not result:
-        return {"rating": "N/A", "score": None, "breakdown": {}, "disclaimer": _DISCLAIMER, "data_quality": "none"}
+        return {"rating": "N/A", "score": None, "breakdown": {}, "sector_profile": None, "disclaimer": _DISCLAIMER, "data_quality": "none"}
 
-    market = result.get("market") or {}
-    ttm    = result.get("ttm") or {}
-    trends = result.get("trends") or []
+    market  = result.get("market") or {}
+    ttm     = result.get("ttm") or {}
+    trends  = result.get("trends") or []
+    company = result.get("company") or {}
 
-    # ── Valuation (30 pts: P/E=9, EV/EBITDA=8, FCF yield=8, P/B=5) ───────────
+    sector = classify_sector(company)
+    profile = _VAL_PROFILES.get(sector, _VAL_PROFILES['general'])
+
+    # ── Valuation (25 pts: P/E=8, EV/EBITDA=6, FCF yield=7, P/B=4) ───────────
     pe = market.get("pe_trailing")
     ev = market.get("ev_ebitda_info")
     if ev is None:
@@ -359,40 +422,47 @@ def compute_rating(result: dict) -> dict:
 
     pe_score = ev_score = pb_score = fcfy_score = None
     if pe is not None:
-        pe_score = 0 if pe < 0 else _score_bracket(pe, [(12, 9), (18, 7), (25, 5), (35, 3), (50, 1)])
-    if ev is not None and ev >= 0:
-        ev_score = _score_bracket(ev, [(8, 8), (12, 6), (18, 4), (25, 1)])
+        pe_score = 0 if pe < 0 else _score_bracket(pe, profile['pe'])
+    if ev is not None and ev >= 0 and profile['ev'] != 'skip':
+        ev_score = _score_bracket(ev, profile['ev'])
     if pb is not None and pb >= 0:
-        pb_score = _score_bracket(pb, [(1.5, 5), (3, 4), (5, 2), (10, 1)])
-    if fcf_yield is not None:
-        fcfy_score = 0 if fcf_yield < 0 else _score_bracket_high(
-            fcf_yield, [(8, 8), (5, 6), (3, 4), (1.5, 2), (0, 1)])
+        pb_score = _score_bracket(pb, profile['pb'])
+    if fcf_yield is not None and profile['fcfy'] != 'skip':
+        fcfy_score = 0 if fcf_yield < 0 else _score_bracket_high(fcf_yield, profile['fcfy'])
 
     val_raw = val_avail = 0
-    for score, max_pts in [(pe_score, 9), (ev_score, 8), (fcfy_score, 8), (pb_score, 5)]:
+    for score, max_pts in [(pe_score, 8), (ev_score, 6), (fcfy_score, 7), (pb_score, 4)]:
         if score is not None:
             val_raw   += score
             val_avail += max_pts
-    val_component = (val_raw / val_avail * 30) if val_avail > 0 else None
+    val_component = (val_raw / val_avail * 25) if val_avail > 0 else None
 
-    # ── Profitability (30 pts: net_margin=15, roe=15) ─────────────────────────
+    # ── Profitability (25 pts: net_margin=10, roe=10, margin trend=5) ─────────
     nm  = ttm.get("net_margin")
     roe = ttm.get("roe")
 
-    nm_score = roe_score = None
+    # Margin trend: average YoY operating-margin change (bps) over recent
+    # quarters — rewards expanding margins, penalises compression.
+    op_bps_vals = [t["op_bps"] for t in trends
+                   if t is not None and t.get("op_bps") is not None][:4]
+    op_bps_avg = sum(op_bps_vals) / len(op_bps_vals) if op_bps_vals else None
+
+    nm_score = roe_score = trend_score = None
     if nm is not None:
-        nm_score = 0 if nm < 0 else _score_bracket_high(nm, [(25, 15), (15, 12), (8, 8), (3, 4), (0, 1)])
+        nm_score = 0 if nm < 0 else _score_bracket_high(nm, [(25, 10), (15, 8), (8, 5), (3, 3), (0, 1)])
     if roe is not None:
-        roe_score = 0 if roe < 0 else _score_bracket_high(roe, [(30, 15), (20, 12), (12, 8), (5, 4), (0, 1)])
+        roe_score = 0 if roe < 0 else _score_bracket_high(roe, [(30, 10), (20, 8), (12, 5), (5, 3), (0, 1)])
+    if op_bps_avg is not None:
+        trend_score = _score_bracket_high(op_bps_avg, [(150, 5), (50, 4), (-50, 3), (-150, 1)])
 
     prof_raw = prof_avail = 0
-    for score, max_pts in [(nm_score, 15), (roe_score, 15)]:
+    for score, max_pts in [(nm_score, 10), (roe_score, 10), (trend_score, 5)]:
         if score is not None:
             prof_raw   += score
             prof_avail += max_pts
-    prof_component = (prof_raw / prof_avail * 30) if prof_avail > 0 else None
+    prof_component = (prof_raw / prof_avail * 25) if prof_avail > 0 else None
 
-    # ── Growth (25 pts: revenue YoY %, averaged over recent quarters) ─────────
+    # ── Growth (20 pts: revenue YoY %, averaged over recent quarters) ─────────
     # One quarter's YoY is noisy (one-off charges, seasonality quirks); average
     # up to the 4 most recent quarters that have a prior-year comparison.
     yoy_vals = [t["rev_yoy_pct"] for t in trends
@@ -400,13 +470,13 @@ def compute_rating(result: dict) -> dict:
     rev_yoy = round(sum(yoy_vals) / len(yoy_vals), 1) if yoy_vals else None
 
     if rev_yoy is None:
-        growth_component = 12.0   # neutral — no data, don't penalise
-    elif rev_yoy >= 25:  growth_component = 25.0
-    elif rev_yoy >= 15:  growth_component = 20.0
-    elif rev_yoy >= 8:   growth_component = 15.0
-    elif rev_yoy >= 3:   growth_component = 10.0
-    elif rev_yoy >= 0:   growth_component = 6.0
-    elif rev_yoy >= -5:  growth_component = 3.0
+        growth_component = 10.0   # neutral — no data, don't penalise
+    elif rev_yoy >= 25:  growth_component = 20.0
+    elif rev_yoy >= 15:  growth_component = 16.0
+    elif rev_yoy >= 8:   growth_component = 12.0
+    elif rev_yoy >= 3:   growth_component = 8.0
+    elif rev_yoy >= 0:   growth_component = 5.0
+    elif rev_yoy >= -5:  growth_component = 2.0
     else:                growth_component = 0.0
 
     # ── Financial Health (15 pts: current_ratio=6, d/e=6, int. coverage=3) ───
@@ -429,12 +499,24 @@ def compute_rating(result: dict) -> dict:
             health_avail += max_pts
     health_component = (health_raw / health_avail * 15) if health_avail > 0 else None
 
+    # ── Momentum (15 pts: price position within the 52-week range) ───────────
+    price = market.get("price")
+    hi    = market.get("week52_high")
+    lo    = market.get("week52_low")
+
+    momentum_component = None
+    if price is not None and hi is not None and lo is not None and hi > lo:
+        pos = max(0.0, min(1.0, (price - lo) / (hi - lo)))
+        momentum_component = float(_score_bracket_high(
+            pos, [(0.8, 15), (0.6, 12), (0.4, 8), (0.2, 4), (0.0, 1)]))
+
     # ── Aggregate ─────────────────────────────────────────────────────────────
     _components = [
-        ("valuation",     val_component,    30),
-        ("profitability", prof_component,   30),
-        ("growth",        growth_component, 25),
-        ("health",        health_component, 15),
+        ("valuation",     val_component,      25),
+        ("profitability", prof_component,     25),
+        ("growth",        growth_component,   20),
+        ("health",        health_component,   15),
+        ("momentum",      momentum_component, 15),
     ]
 
     none_count  = sum(1 for _, v, _ in _components if v is None)
@@ -442,11 +524,11 @@ def compute_rating(result: dict) -> dict:
 
     if   none_count == 0: data_quality = "full"
     elif none_count <= 2: data_quality = "partial"
-    elif none_count == 3: data_quality = "minimal"
+    elif none_count <= 4: data_quality = "minimal"
     else:                 data_quality = "none"
 
     if data_quality == "none":
-        return {"rating": "N/A", "score": None, "breakdown": {}, "disclaimer": _DISCLAIMER, "data_quality": "none"}
+        return {"rating": "N/A", "score": None, "breakdown": {}, "sector_profile": None, "disclaimer": _DISCLAIMER, "data_quality": "none"}
 
     total_score = round(total_score, 1)
     if   total_score >= 65: rating = "BUY"
@@ -454,16 +536,18 @@ def compute_rating(result: dict) -> dict:
     else:                   rating = "SELL"
 
     breakdown = {
-        "valuation":     {"score": round(val_component    if val_component    is not None else 15.0, 1), "max": 30, "label": "Valuation"},
-        "profitability": {"score": round(prof_component   if prof_component   is not None else 15.0, 1), "max": 30, "label": "Profitability"},
-        "growth":        {"score": round(growth_component,                                             1), "max": 25, "label": "Growth"},
-        "health":        {"score": round(health_component if health_component is not None else 7.5,   1), "max": 15, "label": "Financial Health"},
+        "valuation":     {"score": round(val_component      if val_component      is not None else 12.5, 1), "max": 25, "label": "Valuation"},
+        "profitability": {"score": round(prof_component     if prof_component     is not None else 12.5, 1), "max": 25, "label": "Profitability"},
+        "growth":        {"score": round(growth_component,                                                1), "max": 20, "label": "Growth"},
+        "health":        {"score": round(health_component   if health_component   is not None else 7.5,  1), "max": 15, "label": "Financial Health"},
+        "momentum":      {"score": round(momentum_component if momentum_component is not None else 7.5,  1), "max": 15, "label": "Momentum (52W)"},
     }
 
     return {
-        "rating":       rating,
-        "score":        total_score,
-        "breakdown":    breakdown,
-        "disclaimer":   _DISCLAIMER,
-        "data_quality": data_quality,
+        "rating":         rating,
+        "score":          total_score,
+        "breakdown":      breakdown,
+        "sector_profile": sector,
+        "disclaimer":     _DISCLAIMER,
+        "data_quality":   data_quality,
     }

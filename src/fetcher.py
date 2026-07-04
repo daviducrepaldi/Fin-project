@@ -9,7 +9,8 @@ Financials   →  SEC EDGAR company facts API (XBRL)
                 Authoritative source for all US public company filings
 
 Ratios       →  Computed from price × EDGAR fundamentals
-                market_cap, EV, PE, P/B, EV/EBITDA, EV/Revenue
+                market_cap, EV, PE, P/B, EV/EBITDA, EV/Revenue,
+                beta (1Y daily returns vs. SPY), dividend yield
 """
 import math
 import os
@@ -98,20 +99,61 @@ def _tiingo_get(path: str, params: dict = None):
     return r.json()
 
 
+def _get_tiingo_prices(ticker: str) -> list:
+    """One year of daily price rows from Tiingo."""
+    one_year_ago = (date.today() - timedelta(days=366)).isoformat()
+    today        = date.today().isoformat()
+    return _tiingo_get(
+        f"/tiingo/daily/{ticker}/prices",
+        params={"startDate": one_year_ago, "endDate": today},
+    )
+
+
+_BENCHMARK = "SPY"
+_benchmark_prices_cache: list = []   # fetched once per process
+
+
+def _compute_beta(prices: list) -> float:
+    """
+    Beta vs. SPY from one year of daily adjusted closes:
+    cov(stock returns, benchmark returns) / var(benchmark returns).
+    Returns None when the benchmark can't be fetched or overlap is too short.
+    """
+    global _benchmark_prices_cache
+    try:
+        if not _benchmark_prices_cache:
+            _benchmark_prices_cache = _get_tiingo_prices(_BENCHMARK)
+        bench = _benchmark_prices_cache
+    except Exception:
+        return None
+
+    def _by_day(rows):
+        return {p["date"][:10]: p["adjClose"] for p in rows
+                if p.get("adjClose") and p.get("date")}
+
+    s, b = _by_day(prices), _by_day(bench)
+    days = sorted(set(s) & set(b))
+    if len(days) < 120:   # need a meaningful overlap for a stable estimate
+        return None
+
+    rs = [s[days[i]] / s[days[i - 1]] - 1 for i in range(1, len(days))]
+    rb = [b[days[i]] / b[days[i - 1]] - 1 for i in range(1, len(days))]
+    mean_s, mean_b = sum(rs) / len(rs), sum(rb) / len(rb)
+    var_b = sum((x - mean_b) ** 2 for x in rb) / (len(rb) - 1)
+    if var_b == 0:
+        return None
+    cov = sum((x - mean_s) * (y - mean_b) for x, y in zip(rs, rb)) / (len(rs) - 1)
+    return round(cov / var_b, 3)
+
+
 def _get_tiingo_data(ticker: str) -> dict:
     """
     Fetch meta + one year of daily prices from Tiingo.
     Returns dict with: name, exchange, price, week52_high, week52_low,
-    annual_dividend (sum of divCash over trailing year).
+    annual_dividend (sum of divCash over trailing year), beta (vs. SPY).
     """
-    meta = _tiingo_get(f"/tiingo/daily/{ticker}")
-
-    one_year_ago = (date.today() - timedelta(days=366)).isoformat()
-    today        = date.today().isoformat()
-    prices = _tiingo_get(
-        f"/tiingo/daily/{ticker}/prices",
-        params={"startDate": one_year_ago, "endDate": today},
-    )
+    meta   = _tiingo_get(f"/tiingo/daily/{ticker}")
+    prices = _get_tiingo_prices(ticker)
 
     if not prices:
         raise RuntimeError(f"{ticker}: Tiingo returned no price data")
@@ -126,6 +168,7 @@ def _get_tiingo_data(ticker: str) -> dict:
         "week52_high":    max(closes) if closes else None,
         "week52_low":     min(closes) if closes else None,
         "annual_dividend": annual_div if annual_div > 0 else None,
+        "beta":           _compute_beta(prices),
     }
 
 
@@ -147,13 +190,14 @@ def _get_cik(ticker: str) -> str:
 
 
 def _get_edgar_meta(cik: str) -> dict:
-    """Fetch company name and SIC industry description from EDGAR submissions."""
+    """Fetch company name, SIC code and SIC industry description from EDGAR submissions."""
     r = requests.get(_EDGAR_SUB_URL.format(cik=cik), headers=_EDGAR_HEADERS, timeout=30)
     r.raise_for_status()
     data = r.json()
     return {
         "name":     data.get("name", ""),
         "industry": data.get("sicDescription", ""),
+        "sic":      data.get("sic", ""),
     }
 
 
@@ -485,11 +529,13 @@ def _build_cashflow(ugaap: dict, ifrs: dict) -> list:
 
 
 def _compute_market(price, tiingo: dict, income: list, balance: list,
-                    ugaap: dict, ifrs: dict) -> dict:
+                    ugaap: dict, ifrs: dict, dei: dict = None) -> dict:
     """Derive market/valuation metrics from Tiingo price + EDGAR fundamentals."""
 
-    # Shares outstanding — prefer EDGAR instant value
+    # Shares outstanding — most companies only report this under the dei
+    # namespace (cover-page fact), so check it alongside us-gaap/ifrs.
     shares_data = (
+        _first_ins(dei or {}, "EntityCommonStockSharesOutstanding") or
         _first_ins(ugaap, "CommonStockSharesOutstanding", "SharesOutstanding") or
         _first_ins(ifrs,  "NumberOfSharesOutstanding", "WeightedAverageShares")
     )
@@ -540,7 +586,7 @@ def _compute_market(price, tiingo: dict, income: list, balance: list,
         "ev_ebitda_info":     ev_ebitda,
         "ev_revenue_info":    ev_revenue,
         "dividend_yield":     div_yield,
-        "beta":               None,
+        "beta":               tiingo.get("beta"),
         "week52_high":        tiingo.get("week52_high"),
         "week52_low":         tiingo.get("week52_low"),
     }
@@ -589,21 +635,26 @@ def _fetch_raw(ticker: str) -> dict:
     fact_ns      = facts.get("facts", {})
     ugaap        = fact_ns.get("us-gaap",   {})
     ifrs         = fact_ns.get("ifrs-full", {})
+    dei          = fact_ns.get("dei",       {})
 
     income   = _build_income(ugaap, ifrs)
     balance  = _build_balance(ugaap, ifrs)
     cashflow = _build_cashflow(ugaap, ifrs)
-    market   = _compute_market(price, tiingo, income, balance, ugaap, ifrs)
+    market   = _compute_market(price, tiingo, income, balance, ugaap, ifrs, dei)
+
+    from src.utils import classify_sector
 
     company = {
         "ticker":       ticker,
         "name":         tiingo["name"] or edgar_meta.get("name", ticker),
-        "sector":       "",
         "industry":     edgar_meta.get("industry", ""),
+        "sic":          edgar_meta.get("sic", ""),
         "currency":     "USD",
         "exchange":     tiingo["exchange"],
         "last_updated": str(date.today()),
     }
+    bucket = classify_sector(company)
+    company["sector"] = bucket.replace("_", " ").title() if bucket != "general" else ""
 
     return {
         "company":  company,
