@@ -35,7 +35,7 @@ def classify_sector(company: dict) -> str:
                 return 'healthcare'
             if 3570 <= s <= 3699 or 7370 <= s <= 7379:
                 return 'technology'
-            if 5200 <= s <= 5999 or 2000 <= s <= 2199:
+            if 5200 <= s <= 5999 or 2000 <= s <= 2199 or 3711 <= s <= 3716:
                 return 'consumer'
 
     keyword_map = [
@@ -45,7 +45,7 @@ def classify_sector(company: dict) -> str:
         ('healthcare',  ('pharma', 'biotech', 'health', 'medical', 'drug', 'life sciences')),
         ('energy',      ('oil', 'gas', 'energy', 'petroleum', 'coal', 'drilling')),
         ('utilities',   ('utility', 'utilities', 'electric services', 'power generation', 'water supply')),
-        ('consumer',    ('retail', 'consumer', 'food', 'beverage', 'apparel', 'restaurant', 'grocery', 'automobile', 'auto manufact')),
+        ('consumer',    ('retail', 'consumer', 'food', 'beverage', 'apparel', 'restaurant', 'grocery', 'automobile', 'auto manufact', 'motor vehicle')),
     ]
     # The sector field is authoritative when present ("Consumer Cyclical" beats
     # an "Internet Retail" industry string); industry is only a fallback.

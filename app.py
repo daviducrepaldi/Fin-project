@@ -24,10 +24,12 @@ def _load_env():
             continue
 _load_env()
 
+from datetime import datetime, timedelta
+
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-from src import db, fetcher, analyzer
+from src import db, fetcher, analyzer, technicals
 from src.utils import period_to_quarter_label, clean_for_json
 
 # db.init_db() intentionally not called here — the web app reads from JSON files,
@@ -444,6 +446,188 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
         )
 
 
+# ── market intel tab ──────────────────────────────────────────────────────────
+
+def _fmt_signed_pct(v):
+    if v is None:
+        return "N/A"
+    return f"{'+' if v >= 0 else ''}{v:.1f}%"
+
+
+def _render_market_intel(ticker: str, data: dict, result: dict):
+    """Render the MARKET INTEL sub-tab: price action, reverse DCF,
+    insider activity and the EDGAR filings feed."""
+    prices  = data.get("prices") or []
+    filings = data.get("filings") or []
+    insider = data.get("insider") or []
+    market  = result.get("market") or {}
+    ttm     = result.get("ttm") or {}
+    trends  = result.get("trends") or []
+
+    if not prices and not filings:
+        st.info(
+            "Market intel (price history, insider activity, filings) is not in "
+            "this ticker's cached data yet — click **🔄 REFRESH LIVE DATA** to fetch it."
+        )
+
+    # ── price action ──────────────────────────────────────────────
+    tech = technicals.compute_technicals(prices) if prices else None
+    if tech:
+        _section_header("PRICE ACTION — 1Y DAILY")
+
+        dist_high = None
+        if market.get("price") and market.get("week52_high"):
+            dist_high = (market["price"] / market["week52_high"] - 1) * 100
+
+        s1, s2, s3, s4, s5, s6, s7 = st.columns(7)
+        s1.metric("1M Return",  _fmt_signed_pct(tech["return_1m"]))
+        s2.metric("3M Return",  _fmt_signed_pct(tech["return_3m"]))
+        s3.metric("6M Return",  _fmt_signed_pct(tech["return_6m"]))
+        s4.metric("1Y Return",  _fmt_signed_pct(tech["return_1y"]))
+        s5.metric("Ann. Vol",   _fmt_pct(tech["ann_vol_pct"]))
+        s6.metric("Max Drawdown", _fmt_signed_pct(tech["max_drawdown_pct"]))
+        s7.metric("vs 52W High", _fmt_signed_pct(dist_high))
+
+        fig = go.Figure()
+        fig.add_candlestick(
+            x=[p["date"] for p in prices],
+            open=[p.get("open") for p in prices],
+            high=[p.get("high") for p in prices],
+            low=[p.get("low") for p in prices],
+            close=[p.get("close") for p in prices],
+            name="OHLC",
+            increasing_line_color=_C_GREEN, decreasing_line_color=_C_RED,
+            increasing_fillcolor=_C_GREEN, decreasing_fillcolor=_C_RED,
+        )
+        fig.add_scatter(x=tech["dates"], y=tech["sma50"], name="SMA 50",
+                        mode="lines", line=dict(color=_C_AMBER, width=1.4))
+        fig.add_scatter(x=tech["dates"], y=tech["sma200"], name="SMA 200",
+                        mode="lines", line=dict(color=_C_BLUE, width=1.4))
+        theme = _chart_theme(
+            title=f"{html.escape(ticker)} — DAILY (ADJUSTED)",
+            height=420,
+            legend=dict(orientation="h", y=1.06, x=1, xanchor="right",
+                        bgcolor="rgba(0,0,0,0)",
+                        font=dict(family="IBM Plex Mono, 'Courier New', monospace",
+                                  color="#888888", size=9)),
+        )
+        theme["xaxis"]["rangeslider"] = dict(visible=False)
+        fig.update_layout(**theme)
+        st.plotly_chart(fig, use_container_width=True)
+
+        vols = [p.get("volume") for p in prices]
+        if any(v is not None for v in vols):
+            vfig = go.Figure(go.Bar(
+                x=[p["date"] for p in prices], y=vols, name="Volume",
+                marker_color=[
+                    _C_GREEN if (p.get("close") or 0) >= (p.get("open") or 0) else _C_RED
+                    for p in prices
+                ],
+            ))
+            vfig.update_layout(**_chart_theme(
+                title="VOLUME", height=140,
+                margin=dict(t=24, b=8, l=4, r=4), showlegend=False,
+            ))
+            st.plotly_chart(vfig, use_container_width=True)
+
+    # ── reverse DCF ───────────────────────────────────────────────
+    _section_header("IMPLIED EXPECTATIONS (REVERSE DCF)")
+    rd = technicals.reverse_dcf(ttm.get("free_cash_flow"), market.get("market_cap"))
+    if rd:
+        yoy_vals = [t["rev_yoy_pct"] for t in trends
+                    if t is not None and t.get("rev_yoy_pct") is not None][:4]
+        actual_growth = round(sum(yoy_vals) / len(yoy_vals), 1) if yoy_vals else None
+        fcf_yield = None
+        if ttm.get("free_cash_flow") and market.get("market_cap"):
+            fcf_yield = ttm["free_cash_flow"] / market["market_cap"] * 100
+
+        d1, d2, d3, d4 = st.columns(4)
+        d1.metric("Implied FCF Growth (10Y)",
+                  f"{rd['implied_growth_pct']:.1f}%/yr" + ("+" if rd["clamped"] else ""))
+        d2.metric("Actual Revenue Growth", _fmt_signed_pct(actual_growth))
+        d3.metric("TTM FCF", _fmt_large(ttm.get("free_cash_flow")))
+        d4.metric("FCF Yield", _fmt_pct(round(fcf_yield, 2) if fcf_yield is not None else None))
+
+        sens_rows = []
+        for row in rd["sensitivity"]:
+            sens_rows.append({
+                "FCF Growth": f"{row['growth_pct']:.1f}%/yr",
+                "Fair Value @8% DR":  _fmt_large(row.get("dr_8")),
+                "Fair Value @10% DR": _fmt_large(row.get("dr_10")),
+                "Fair Value @12% DR": _fmt_large(row.get("dr_12")),
+            })
+        st.dataframe(pd.DataFrame(sens_rows), use_container_width=True, hide_index=True)
+        st.caption(
+            f"To justify today's market cap ({_fmt_large(market.get('market_cap'))}), TTM free cash "
+            f"flow must grow ~{rd['implied_growth_pct']:.1f}%/yr for {rd['years']} years "
+            f"(then {rd['terminal_growth_pct']}% forever, {rd['discount_rate_pct']}% discount rate). "
+            "Simplified model — compares levered FCF to equity value, ignores net debt and dilution. "
+            "Not financial advice."
+        )
+    else:
+        st.info("Reverse DCF unavailable — needs positive TTM free cash flow and a market cap.")
+
+    # ── insider activity ──────────────────────────────────────────
+    _section_header("INSIDER ACTIVITY (FORM 4)")
+    if insider:
+        buys  = [t for t in insider if t.get("code") == "P"]
+        sells = [t for t in insider if t.get("code") == "S"]
+        buy_val  = sum(t["value"] or 0 for t in buys)
+        sell_val = sum(t["value"] or 0 for t in sells)
+        st.markdown(
+            f'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.78rem;color:#e0e0e0;'
+            f'margin-bottom:0.4rem;">RECENT FILINGS: '
+            f'<span style="color:{_C_GREEN};">{len(buys)} OPEN-MARKET BUYS ({_fmt_large(buy_val)})</span>'
+            f'<span style="color:#888;"> · </span>'
+            f'<span style="color:{_C_RED};">{len(sells)} SALES ({_fmt_large(sell_val)})</span></div>',
+            unsafe_allow_html=True,
+        )
+        ins_rows = [{
+            "Date":    t.get("date", ""),
+            "Insider": t.get("name", ""),
+            "Role":    t.get("role", ""),
+            "Action":  t.get("action", ""),
+            "Shares":  f"{t['shares']:,.0f}" if t.get("shares") is not None else "N/A",
+            "Price":   f"${t['price']:,.2f}" if t.get("price") is not None else "N/A",
+            "Value":   _fmt_large(t.get("value")) if t.get("value") is not None else "N/A",
+        } for t in insider]
+        st.dataframe(pd.DataFrame(ins_rows), use_container_width=True, hide_index=True)
+        st.caption(
+            "Latest Form 4 filings from SEC EDGAR. EXERCISE/GRANT/TAX rows are routine "
+            "compensation mechanics — open-market BUYs are the strongest signal."
+        )
+    elif filings or prices:
+        st.info("No recent Form 4 (insider) filings found for this ticker.")
+
+    # ── filings & events ──────────────────────────────────────────
+    _section_header("FILINGS & EVENTS")
+    if filings:
+        last_report = next((f for f in filings if f["form"] in ("10-Q", "10-K")), None)
+        if last_report:
+            try:
+                nxt = datetime.strptime(last_report["date"], "%Y-%m-%d") + timedelta(days=91)
+                e1, e2 = st.columns(2)
+                e1.metric("Last Report Filed", f"{last_report['date']} ({last_report['form']})")
+                e2.metric("Est. Next Earnings", f"~{nxt.strftime('%Y-%m-%d')}")
+            except ValueError:
+                pass
+        fil_df = pd.DataFrame([{
+            "Form": f["form"], "Filed": f["date"], "Link": f["url"],
+        } for f in filings])
+        st.dataframe(
+            fil_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Link": st.column_config.LinkColumn("EDGAR", display_text="OPEN ↗"),
+            },
+        )
+        st.caption(
+            "Next-earnings date is an estimate (last quarterly filing + ~91 days) — "
+            "companies announce results before filing the 10-Q/10-K."
+        )
+
+
 # ── sidebar ───────────────────────────────────────────────────────────────────
 
 with st.sidebar:
@@ -702,182 +886,190 @@ for tab_idx, ticker in enumerate(all_results.keys()):
             print(f"RATING ERROR {ticker}: {type(_e).__name__}: {_e}")
             st.warning("Rating unavailable for this ticker.")
 
+        tab_fund, tab_intel = st.tabs(["FUNDAMENTALS", "MARKET INTEL"])
+
+        with tab_intel:
+            _render_market_intel(ticker, all_data.get(ticker, {}), result)
+
         if not quarters:
-            st.info("No quarterly data available for this ticker.")
+            with tab_fund:
+                st.info("No quarterly data available for this ticker.")
             continue
 
-        # ── build DataFrame ────────────────────────────────────────
-        df = pd.DataFrame(quarters)
-        df["label"] = df["period"].apply(_qlabel)
-        df = df.sort_values("period")   # oldest → newest for charts
+        with tab_fund:
 
-        # ── charts row 1: Revenue/NI + Margins ────────────────────
-        col_l, col_r = st.columns(2)
+            # ── build DataFrame ────────────────────────────────────────
+            df = pd.DataFrame(quarters)
+            df["label"] = df["period"].apply(_qlabel)
+            df = df.sort_values("period")   # oldest → newest for charts
 
-        with col_l:
-            fig = go.Figure()
-            if df["revenue"].notna().any():
-                fig.add_bar(
-                    x=df["label"], y=df["revenue"] / 1e9,
-                    name="Revenue", marker_color=_C_BLUE,
-                )
-            if df["net_income"].notna().any():
-                fig.add_bar(
-                    x=df["label"], y=df["net_income"] / 1e9,
-                    name="Net Income", marker_color=_C_GREEN,
-                )
-            fig.update_layout(**_chart_theme(
-                title="REVENUE & NET INCOME ($B)",
-                barmode="group",
-                height=340,
-                legend=dict(orientation="h", y=-0.18, bgcolor="rgba(0,0,0,0)",
-                            font=dict(family="IBM Plex Mono, 'Courier New', monospace", color="#888888", size=9)),
-                margin=dict(t=36, b=48, l=4, r=4),
-            ))
-            st.plotly_chart(fig, use_container_width=True)
+            # ── charts row 1: Revenue/NI + Margins ────────────────────
+            col_l, col_r = st.columns(2)
 
-        with col_r:
-            fig = go.Figure()
-            for col, name_l, color in [
-                ("gross_margin", "Gross Margin", _C_BLUE),
-                ("op_margin",    "Op. Margin",   _C_AMBER),
-                ("net_margin",   "Net Margin",   _C_GREEN),
-                ("fcf_margin",   "FCF Margin",   _C_PURPLE),
-            ]:
-                if col in df.columns and df[col].notna().any():
-                    fig.add_scatter(
-                        x=df["label"], y=df[col], name=name_l,
-                        mode="lines+markers", line=dict(color=color, width=2),
+            with col_l:
+                fig = go.Figure()
+                if df["revenue"].notna().any():
+                    fig.add_bar(
+                        x=df["label"], y=df["revenue"] / 1e9,
+                        name="Revenue", marker_color=_C_BLUE,
                     )
-            fig.update_layout(**_chart_theme(
-                title="MARGIN TRENDS (%)",
-                height=340,
-                legend=dict(orientation="h", y=-0.18, bgcolor="rgba(0,0,0,0)",
-                            font=dict(family="IBM Plex Mono, 'Courier New', monospace", color="#888888", size=9)),
-                margin=dict(t=36, b=48, l=4, r=4),
-            ))
-            st.plotly_chart(fig, use_container_width=True)
-
-        # ── charts row 2: FCF + Liquidity/Leverage ─────────────────
-        col_l2, col_r2 = st.columns(2)
-
-        with col_l2:
-            fig = go.Figure()
-            if df["free_cash_flow"].notna().any():
-                colors = [
-                    _C_GREEN if (v or 0) >= 0 else _C_RED
-                    for v in df["free_cash_flow"]
-                ]
-                fig.add_bar(
-                    x=df["label"], y=df["free_cash_flow"] / 1e9,
-                    name="FCF", marker_color=colors,
-                )
-            fig.update_layout(**_chart_theme(
-                title="FREE CASH FLOW ($B)",
-                height=340,
-                margin=dict(t=36, b=48, l=4, r=4),
-            ))
-            st.plotly_chart(fig, use_container_width=True)
-
-        with col_r2:
-            fig = go.Figure()
-            for col, name_l, color in [
-                ("current_ratio",   "Current Ratio", _C_BLUE),
-                ("quick_ratio",     "Quick Ratio",   _C_AMBER),
-                ("debt_to_equity",  "D/E Ratio",     _C_RED),
-            ]:
-                if col in df.columns and df[col].notna().any():
-                    fig.add_scatter(
-                        x=df["label"], y=df[col], name=name_l,
-                        mode="lines+markers", line=dict(color=color, width=2),
+                if df["net_income"].notna().any():
+                    fig.add_bar(
+                        x=df["label"], y=df["net_income"] / 1e9,
+                        name="Net Income", marker_color=_C_GREEN,
                     )
-            fig.update_layout(**_chart_theme(
-                title="LIQUIDITY & LEVERAGE",
-                height=340,
-                legend=dict(orientation="h", y=-0.18, bgcolor="rgba(0,0,0,0)",
-                            font=dict(family="IBM Plex Mono, 'Courier New', monospace", color="#888888", size=9)),
-                margin=dict(t=36, b=48, l=4, r=4),
-            ))
-            st.plotly_chart(fig, use_container_width=True)
+                fig.update_layout(**_chart_theme(
+                    title="REVENUE & NET INCOME ($B)",
+                    barmode="group",
+                    height=340,
+                    legend=dict(orientation="h", y=-0.18, bgcolor="rgba(0,0,0,0)",
+                                font=dict(family="IBM Plex Mono, 'Courier New', monospace", color="#888888", size=9)),
+                    margin=dict(t=36, b=48, l=4, r=4),
+                ))
+                st.plotly_chart(fig, use_container_width=True)
 
-        # ── TTM summary ────────────────────────────────────────────
-        st.divider()
-        _section_header("TRAILING TWELVE MONTHS (TTM)")
-        t1, t2, t3, t4, t5, t6 = st.columns(6)
-        t1.metric("Revenue",      _fmt_large(ttm.get("revenue")))
-        t2.metric("Net Income",   _fmt_large(ttm.get("net_income")))
-        t3.metric("Free CF",      _fmt_large(ttm.get("free_cash_flow")))
-        t4.metric("Gross Margin", _fmt_pct(ttm.get("gross_margin")))
-        t5.metric("Net Margin",   _fmt_pct(ttm.get("net_margin")))
-        t6.metric("ROE",          _fmt_pct(ttm.get("roe")))
+            with col_r:
+                fig = go.Figure()
+                for col, name_l, color in [
+                    ("gross_margin", "Gross Margin", _C_BLUE),
+                    ("op_margin",    "Op. Margin",   _C_AMBER),
+                    ("net_margin",   "Net Margin",   _C_GREEN),
+                    ("fcf_margin",   "FCF Margin",   _C_PURPLE),
+                ]:
+                    if col in df.columns and df[col].notna().any():
+                        fig.add_scatter(
+                            x=df["label"], y=df[col], name=name_l,
+                            mode="lines+markers", line=dict(color=color, width=2),
+                        )
+                fig.update_layout(**_chart_theme(
+                    title="MARGIN TRENDS (%)",
+                    height=340,
+                    legend=dict(orientation="h", y=-0.18, bgcolor="rgba(0,0,0,0)",
+                                font=dict(family="IBM Plex Mono, 'Courier New', monospace", color="#888888", size=9)),
+                    margin=dict(t=36, b=48, l=4, r=4),
+                ))
+                st.plotly_chart(fig, use_container_width=True)
 
-        # ── quarterly ratio table ──────────────────────────────────
-        st.divider()
-        _section_header("QUARTERLY RATIOS")
-        display_cols = {
-            "label":           "Period",
-            "gross_margin":    "Gross Margin %",
-            "op_margin":       "Op. Margin %",
-            "net_margin":      "Net Margin %",
-            "fcf_margin":      "FCF Margin %",
-            "roe":             "ROE %",
-            "roa":             "ROA %",
-            "current_ratio":   "Current Ratio",
-            "quick_ratio":     "Quick Ratio",
-            "debt_to_equity":  "D/E",
-            "interest_coverage": "Int. Coverage",
-        }
-        # Sort by the real date, not the "Q3'24" label — string-sorting labels
-        # groups all Q4s together regardless of year.
-        table_df = (
-            df.sort_values("period", ascending=False)[list(display_cols.keys())]
-            .rename(columns=display_cols)
-            .reset_index(drop=True)
-        )
-        # All-None columns arrive as object dtype and can render as the literal
-        # string "None" in st.dataframe; coerce to float so missing values are
-        # real NaN and na_rep applies.
-        for _c in table_df.columns:
-            if _c != "Period":
-                table_df[_c] = pd.to_numeric(table_df[_c], errors="coerce")
-        # Hide metrics the company doesn't report at all (e.g. Visa has no
-        # cost-of-goods line, so gross margin is undefined, not missing).
-        table_df = table_df.drop(columns=[
-            c for c in table_df.columns
-            if c != "Period" and table_df[c].isna().all()
-        ])
-        st.dataframe(
-            table_df.style.format(
-                {c: "{:.1f}" for c in table_df.columns if c != "Period"},
-                na_rep="N/A",
-            ),
-            use_container_width=True,
-            hide_index=True,
-        )
-        st.caption(
-            "Quarters are labeled by calendar period end. Companies with offset "
-            "fiscal years (e.g. AAPL's year ends in September) show fiscal quarters "
-            "under the calendar label."
-        )
+            # ── charts row 2: FCF + Liquidity/Leverage ─────────────────
+            col_l2, col_r2 = st.columns(2)
 
-        # ── YoY trends ─────────────────────────────────────────────
-        trend_pairs = [(t, q) for t, q in zip(trends, quarters) if t is not None]
-        if trend_pairs:
+            with col_l2:
+                fig = go.Figure()
+                if df["free_cash_flow"].notna().any():
+                    colors = [
+                        _C_GREEN if (v or 0) >= 0 else _C_RED
+                        for v in df["free_cash_flow"]
+                    ]
+                    fig.add_bar(
+                        x=df["label"], y=df["free_cash_flow"] / 1e9,
+                        name="FCF", marker_color=colors,
+                    )
+                fig.update_layout(**_chart_theme(
+                    title="FREE CASH FLOW ($B)",
+                    height=340,
+                    margin=dict(t=36, b=48, l=4, r=4),
+                ))
+                st.plotly_chart(fig, use_container_width=True)
+
+            with col_r2:
+                fig = go.Figure()
+                for col, name_l, color in [
+                    ("current_ratio",   "Current Ratio", _C_BLUE),
+                    ("quick_ratio",     "Quick Ratio",   _C_AMBER),
+                    ("debt_to_equity",  "D/E Ratio",     _C_RED),
+                ]:
+                    if col in df.columns and df[col].notna().any():
+                        fig.add_scatter(
+                            x=df["label"], y=df[col], name=name_l,
+                            mode="lines+markers", line=dict(color=color, width=2),
+                        )
+                fig.update_layout(**_chart_theme(
+                    title="LIQUIDITY & LEVERAGE",
+                    height=340,
+                    legend=dict(orientation="h", y=-0.18, bgcolor="rgba(0,0,0,0)",
+                                font=dict(family="IBM Plex Mono, 'Courier New', monospace", color="#888888", size=9)),
+                    margin=dict(t=36, b=48, l=4, r=4),
+                ))
+                st.plotly_chart(fig, use_container_width=True)
+
+            # ── TTM summary ────────────────────────────────────────────
             st.divider()
-            _section_header("YOY TRENDS (VS. SAME QUARTER PRIOR YEAR)")
-            trend_rows = []
-            for t_row, q_row in trend_pairs:
-                r_yoy = t_row.get("rev_yoy_pct")
-                fcf_yoy = t_row.get("fcf_yoy_pct")
-                trend_rows.append({
-                    "Quarter":         _qlabel(q_row["period"]),
-                    "Revenue YoY":     f"{'+' if (r_yoy or 0)>=0 else ''}{r_yoy:.1f}% {t_row.get('rev_arrow','')}" if r_yoy is not None else "N/A",
-                    "Gross Margin Δ":  f"{'+' if (t_row.get('gm_bps') or 0)>=0 else ''}{int(t_row['gm_bps']):,}bps {t_row.get('gm_arrow','')}" if t_row.get("gm_bps") is not None else "N/A",
-                    "Op. Margin Δ":    f"{'+' if (t_row.get('op_bps') or 0)>=0 else ''}{int(t_row['op_bps']):,}bps {t_row.get('op_arrow','')}" if t_row.get("op_bps") is not None else "N/A",
-                    "Net Margin Δ":    f"{'+' if (t_row.get('ni_bps') or 0)>=0 else ''}{int(t_row['ni_bps']):,}bps {t_row.get('ni_arrow','')}" if t_row.get("ni_bps") is not None else "N/A",
-                    "FCF YoY":         f"{'+' if (fcf_yoy or 0)>=0 else ''}{fcf_yoy:.1f}% {t_row.get('fcf_arrow','')}" if fcf_yoy is not None else "N/A",
-                })
-            st.dataframe(pd.DataFrame(trend_rows), use_container_width=True, hide_index=True)
+            _section_header("TRAILING TWELVE MONTHS (TTM)")
+            t1, t2, t3, t4, t5, t6 = st.columns(6)
+            t1.metric("Revenue",      _fmt_large(ttm.get("revenue")))
+            t2.metric("Net Income",   _fmt_large(ttm.get("net_income")))
+            t3.metric("Free CF",      _fmt_large(ttm.get("free_cash_flow")))
+            t4.metric("Gross Margin", _fmt_pct(ttm.get("gross_margin")))
+            t5.metric("Net Margin",   _fmt_pct(ttm.get("net_margin")))
+            t6.metric("ROE",          _fmt_pct(ttm.get("roe")))
+
+            # ── quarterly ratio table ──────────────────────────────────
+            st.divider()
+            _section_header("QUARTERLY RATIOS")
+            display_cols = {
+                "label":           "Period",
+                "gross_margin":    "Gross Margin %",
+                "op_margin":       "Op. Margin %",
+                "net_margin":      "Net Margin %",
+                "fcf_margin":      "FCF Margin %",
+                "roe":             "ROE %",
+                "roa":             "ROA %",
+                "current_ratio":   "Current Ratio",
+                "quick_ratio":     "Quick Ratio",
+                "debt_to_equity":  "D/E",
+                "interest_coverage": "Int. Coverage",
+            }
+            # Sort by the real date, not the "Q3'24" label — string-sorting labels
+            # groups all Q4s together regardless of year.
+            table_df = (
+                df.sort_values("period", ascending=False)[list(display_cols.keys())]
+                .rename(columns=display_cols)
+                .reset_index(drop=True)
+            )
+            # All-None columns arrive as object dtype and can render as the literal
+            # string "None" in st.dataframe; coerce to float so missing values are
+            # real NaN and na_rep applies.
+            for _c in table_df.columns:
+                if _c != "Period":
+                    table_df[_c] = pd.to_numeric(table_df[_c], errors="coerce")
+            # Hide metrics the company doesn't report at all (e.g. Visa has no
+            # cost-of-goods line, so gross margin is undefined, not missing).
+            table_df = table_df.drop(columns=[
+                c for c in table_df.columns
+                if c != "Period" and table_df[c].isna().all()
+            ])
+            st.dataframe(
+                table_df.style.format(
+                    {c: "{:.1f}" for c in table_df.columns if c != "Period"},
+                    na_rep="N/A",
+                ),
+                use_container_width=True,
+                hide_index=True,
+            )
+            st.caption(
+                "Quarters are labeled by calendar period end. Companies with offset "
+                "fiscal years (e.g. AAPL's year ends in September) show fiscal quarters "
+                "under the calendar label."
+            )
+
+            # ── YoY trends ─────────────────────────────────────────────
+            trend_pairs = [(t, q) for t, q in zip(trends, quarters) if t is not None]
+            if trend_pairs:
+                st.divider()
+                _section_header("YOY TRENDS (VS. SAME QUARTER PRIOR YEAR)")
+                trend_rows = []
+                for t_row, q_row in trend_pairs:
+                    r_yoy = t_row.get("rev_yoy_pct")
+                    fcf_yoy = t_row.get("fcf_yoy_pct")
+                    trend_rows.append({
+                        "Quarter":         _qlabel(q_row["period"]),
+                        "Revenue YoY":     f"{'+' if (r_yoy or 0)>=0 else ''}{r_yoy:.1f}% {t_row.get('rev_arrow','')}" if r_yoy is not None else "N/A",
+                        "Gross Margin Δ":  f"{'+' if (t_row.get('gm_bps') or 0)>=0 else ''}{int(t_row['gm_bps']):,}bps {t_row.get('gm_arrow','')}" if t_row.get("gm_bps") is not None else "N/A",
+                        "Op. Margin Δ":    f"{'+' if (t_row.get('op_bps') or 0)>=0 else ''}{int(t_row['op_bps']):,}bps {t_row.get('op_arrow','')}" if t_row.get("op_bps") is not None else "N/A",
+                        "Net Margin Δ":    f"{'+' if (t_row.get('ni_bps') or 0)>=0 else ''}{int(t_row['ni_bps']):,}bps {t_row.get('ni_arrow','')}" if t_row.get("ni_bps") is not None else "N/A",
+                        "FCF YoY":         f"{'+' if (fcf_yoy or 0)>=0 else ''}{fcf_yoy:.1f}% {t_row.get('fcf_arrow','')}" if fcf_yoy is not None else "N/A",
+                    })
+                st.dataframe(pd.DataFrame(trend_rows), use_container_width=True, hide_index=True)
 
 
 # ── comparison tab ────────────────────────────────────────────────────────────

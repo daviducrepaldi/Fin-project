@@ -14,6 +14,7 @@ Ratios       →  Computed from price × EDGAR fundamentals
 """
 import math
 import os
+import re
 import time
 from datetime import datetime, date, timedelta
 
@@ -161,6 +162,21 @@ def _get_tiingo_data(ticker: str) -> dict:
     closes        = [p["adjClose"] for p in prices if p.get("adjClose") is not None]
     annual_div    = sum(p.get("divCash", 0) or 0 for p in prices)
 
+    def _r(v):
+        return round(v, 4) if isinstance(v, (int, float)) else None
+
+    price_series = [
+        {
+            "date":   p["date"][:10],
+            "open":   _r(p.get("adjOpen")),
+            "high":   _r(p.get("adjHigh")),
+            "low":    _r(p.get("adjLow")),
+            "close":  _r(p.get("adjClose")),
+            "volume": p.get("adjVolume"),
+        }
+        for p in prices if p.get("date")
+    ]
+
     return {
         "name":           meta.get("name", ticker),
         "exchange":       meta.get("exchangeCode", ""),
@@ -169,6 +185,7 @@ def _get_tiingo_data(ticker: str) -> dict:
         "week52_low":     min(closes) if closes else None,
         "annual_dividend": annual_div if annual_div > 0 else None,
         "beta":           _compute_beta(prices),
+        "prices":         price_series,
     }
 
 
@@ -190,7 +207,11 @@ def _get_cik(ticker: str) -> str:
 
 
 def _get_edgar_meta(cik: str) -> dict:
-    """Fetch company name, SIC code and SIC industry description from EDGAR submissions."""
+    """
+    Fetch company name, SIC code/description and the recent-filings index
+    from EDGAR submissions (one request serves meta, the filings feed and
+    the insider-transaction lookup).
+    """
     r = requests.get(_EDGAR_SUB_URL.format(cik=cik), headers=_EDGAR_HEADERS, timeout=30)
     r.raise_for_status()
     data = r.json()
@@ -198,7 +219,96 @@ def _get_edgar_meta(cik: str) -> dict:
         "name":     data.get("name", ""),
         "industry": data.get("sicDescription", ""),
         "sic":      data.get("sic", ""),
+        "recent":   data.get("filings", {}).get("recent", {}),
     }
+
+
+def _filing_url(cik: str, accession: str, primary_doc: str) -> str:
+    return (f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
+            f"{accession.replace('-', '')}/{primary_doc}")
+
+
+def _recent_filings(cik: str, recent: dict, forms: set, limit: int) -> list:
+    """Rows {form, date, url} for the latest filings matching `forms`."""
+    out = []
+    all_forms = recent.get("form", [])
+    dates     = recent.get("filingDate", [])
+    accs      = recent.get("accessionNumber", [])
+    docs      = recent.get("primaryDocument", [])
+    for i, form in enumerate(all_forms):
+        if form not in forms:
+            continue
+        try:
+            out.append({
+                "form": form,
+                "date": dates[i],
+                "url":  _filing_url(cik, accs[i], docs[i]),
+            })
+        except (IndexError, ValueError):
+            continue
+        if len(out) >= limit:
+            break
+    return out
+
+
+_FORM4_CODES = {
+    "P": "BUY", "S": "SELL", "A": "GRANT", "M": "EXERCISE",
+    "F": "TAX", "G": "GIFT", "D": "DISPOSITION", "C": "CONVERSION",
+}
+
+
+def _fetch_insider_transactions(cik: str, recent: dict, limit: int = 8) -> list:
+    """
+    Parse the latest Form 4 filings into transaction rows.
+    Best-effort: unparseable filings are skipped, any failure returns
+    what was collected so far — this must never break a fetch.
+    """
+    import xml.etree.ElementTree as ET
+
+    filings = _recent_filings(cik, recent, {"4"}, limit)
+    rows = []
+    for f in filings:
+        try:
+            # primaryDocument for Form 4 is the XSL-rendered HTML view
+            # ("xslF345X06/form4.xml"); the raw XML is the same path
+            # without the xsl.../ directory component.
+            xml_url = re.sub(r"/xsl[^/]+/", "/", f["url"])
+            r = requests.get(xml_url, headers=_EDGAR_HEADERS, timeout=15)
+            r.raise_for_status()
+            root = ET.fromstring(r.content)
+
+            name = root.findtext(".//reportingOwner/reportingOwnerId/rptOwnerName", "")
+            rel  = root.find(".//reportingOwner/reportingOwnerRelationship")
+            role = ""
+            if rel is not None:
+                role = (rel.findtext("officerTitle") or "").strip()
+                if not role and (rel.findtext("isDirector") or "").strip() in ("1", "true"):
+                    role = "Director"
+                if not role and (rel.findtext("isTenPercentOwner") or "").strip() in ("1", "true"):
+                    role = "10% Owner"
+
+            for tx in root.findall(".//nonDerivativeTable/nonDerivativeTransaction"):
+                code   = tx.findtext(".//transactionCoding/transactionCode", "")
+                shares = tx.findtext(".//transactionAmounts/transactionShares/value")
+                price  = tx.findtext(".//transactionAmounts/transactionPricePerShare/value")
+                date   = tx.findtext(".//transactionDate/value", f["date"])
+                shares = float(shares) if shares else None
+                price  = float(price) if price else None
+                rows.append({
+                    "date":   date,
+                    "name":   name,
+                    "role":   role,
+                    "code":   code,
+                    "action": _FORM4_CODES.get(code, code),
+                    "shares": shares,
+                    "price":  price,
+                    "value":  round(shares * price, 2) if (shares and price) else None,
+                    "url":    f["url"],
+                })
+        except Exception:
+            continue
+    rows.sort(key=lambda x: x.get("date", ""), reverse=True)
+    return rows
 
 
 def _get_edgar_facts(cik: str) -> dict:
@@ -325,6 +435,72 @@ def _fill_missing_q4(quarterly: dict, concept: dict) -> dict:
         if len(in_window) == 3:
             out[end] = fy_val - sum(in_window)
     return out
+
+
+def _ytd_quarterly(concept: dict) -> dict:
+    """
+    Extract quarterly values from a duration concept that is reported
+    cumulatively. Cash-flow statements in 10-Qs are year-to-date (3m/6m/9m
+    from the fiscal-year start; the 10-K covers 12m) — standalone quarters
+    must be derived by differencing consecutive YTD values that share the
+    same fiscal-year start. Directly-reported standalone quarters (~90d
+    durations) are kept as-is. Returns {end_date_str: float_value}.
+    """
+    pts: dict = {}   # (start, end) → (val, filed)
+    for unit_vals in concept.get("units", {}).values():
+        for dp in unit_vals:
+            if dp.get("form") not in (_QUARTERLY_FORMS | _ANNUAL_FORMS):
+                continue
+            start, end, val, filed = dp.get("start", ""), dp.get("end", ""), dp.get("val"), dp.get("filed", "")
+            if not start or not end or val is None:
+                continue
+            try:
+                days = (datetime.strptime(end, "%Y-%m-%d") -
+                        datetime.strptime(start, "%Y-%m-%d")).days
+            except ValueError:
+                continue
+            if not (60 <= days <= 400):
+                continue
+            key = (start, end)
+            if key not in pts or filed > pts[key][1]:
+                pts[key] = (float(val), filed)
+
+    by_start: dict = {}
+    for (start, end), (val, _) in pts.items():
+        by_start.setdefault(start, []).append((end, val))
+
+    result: dict = {}
+    for start, series in by_start.items():
+        series.sort()
+        prev_end, prev_val = start, 0.0
+        for end, val in series:
+            try:
+                chunk = (datetime.strptime(end, "%Y-%m-%d") -
+                         datetime.strptime(prev_end, "%Y-%m-%d")).days
+            except ValueError:
+                break
+            # only accept a ~one-quarter step from the previous YTD point;
+            # a larger gap means an intermediate 10-Q is missing
+            if 75 <= chunk <= 105:
+                result.setdefault(end, val - prev_val)
+            prev_end, prev_val = end, val
+    return result
+
+
+def _first_dur_ytd(tax: dict, *names) -> dict:
+    """_first_dur variant for cumulatively-reported concepts (cash flow)."""
+    merged: dict = {}
+    for name in names:
+        if name in tax:
+            for k, v in _ytd_quarterly(tax[name]).items():
+                merged.setdefault(k, v)
+    if merged:
+        return merged
+    for name in names:
+        if name in tax:
+            for k, v in _annual_duration(tax[name]).items():
+                merged.setdefault(k, v)
+    return merged
 
 
 def _first_dur(tax: dict, *names) -> dict:
@@ -516,8 +692,10 @@ def _build_balance(ugaap: dict, ifrs: dict) -> list:
 
 
 def _build_cashflow(ugaap: dict, ifrs: dict) -> list:
+    # Cash-flow statements are cumulative YTD in 10-Qs — use the
+    # differencing extractor, not the standalone-quarter one.
     def _dur(*names):
-        return _first_dur(ugaap, *names) or _first_dur(ifrs, *names)
+        return _first_dur_ytd(ugaap, *names) or _first_dur_ytd(ifrs, *names)
 
     op_cf  = _dur(
         "NetCashProvidedByUsedInOperatingActivities",
@@ -569,6 +747,18 @@ def _compute_market(price, tiingo: dict, income: list, balance: list,
         _first_ins(ifrs,  "NumberOfSharesOutstanding", "WeightedAverageShares")
     )
     shares = shares_data.get(max(shares_data)) if shares_data else None
+
+    # Dual-class filers (e.g. META) report the cover-page share count only
+    # per class with dimensions, which companyfacts drops — fall back to the
+    # latest quarter's weighted-average diluted shares.
+    if shares is None:
+        wavg = (
+            _first_dur(ugaap, "WeightedAverageNumberOfDilutedSharesOutstanding",
+                       "WeightedAverageNumberOfSharesOutstandingBasic") or
+            _first_dur(ifrs, "WeightedAverageShares",
+                       "AdjustedWeightedAverageShares")
+        )
+        shares = wavg.get(max(wavg)) if wavg else None
 
     market_cap = (price * shares) if (price and shares) else None
 
@@ -685,12 +875,22 @@ def _fetch_raw(ticker: str) -> dict:
     bucket = classify_sector(company)
     company["sector"] = bucket.replace("_", " ").title() if bucket != "general" else ""
 
+    recent = edgar_meta.get("recent", {})
+    filings = _recent_filings(cik, recent, {"10-K", "10-Q", "8-K", "10-K/A", "10-Q/A"}, 12)
+    try:
+        insider = _fetch_insider_transactions(cik, recent)
+    except Exception:
+        insider = []
+
     return {
         "company":  company,
         "market":   market,
         "income":   income,
         "balance":  balance,
         "cashflow": cashflow,
+        "prices":   tiingo.get("prices", []),
+        "filings":  filings,
+        "insider":  insider,
     }
 
 

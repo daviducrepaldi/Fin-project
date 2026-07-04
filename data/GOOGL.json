@@ -1,38 +1,49 @@
 {
   "company": {
     "ticker": "GOOGL",
-    "name": "Alphabet Inc.",
-    "sector": "Communication Services",
-    "industry": "Internet Content & Information",
+    "name": "Alphabet Inc - Class A",
+    "industry": "Services-Computer Programming, Data Processing, Etc.",
+    "sic": "7370",
     "currency": "USD",
-    "exchange": "NMS",
-    "last_updated": "2026-03-20"
+    "exchange": "NASDAQ",
+    "last_updated": "2026-07-04",
+    "sector": "Technology"
   },
   "market": {
-    "market_cap": 3641197199360.0,
-    "enterprise_value": 3581349986304.0,
-    "shares_outstanding": 5822000000.0,
-    "price": 301.0,
-    "pe_trailing": 27.844587,
-    "pe_forward": 22.426586,
-    "pb_ratio": 8.761971,
-    "ev_ebitda_info": 23.848,
-    "ev_revenue_info": 8.89,
-    "dividend_yield": 0.28,
-    "beta": 1.112,
-    "week52_high": 349.0,
-    "week52_low": 140.53
+    "market_cap": 4360669560000.0005,
+    "enterprise_value": 4400107560000.0,
+    "shares_outstanding": 12116000000.0,
+    "price": 359.91,
+    "pe_trailing": 27.22,
+    "pe_forward": null,
+    "pb_ratio": 9.1085,
+    "ev_ebitda_info": null,
+    "ev_revenue_info": 10.4145,
+    "dividend_yield": 0.24,
+    "beta": 1.345,
+    "week52_high": 402.3763436305,
+    "week52_low": 173.862627616
   },
   "income": [
     {
+      "period": "2026-03-31",
+      "revenue": 109896000000.0,
+      "gross_profit": 68625000000.0,
+      "operating_income": 39696000000.0,
+      "net_income": 62578000000.0,
+      "ebitda": null,
+      "interest_expense": 533000000.0,
+      "depreciation_amortization": null
+    },
+    {
       "period": "2025-12-31",
-      "revenue": 113829000000.0,
+      "revenue": 113828000000.0,
       "gross_profit": 68062000000.0,
       "operating_income": 35934000000.0,
       "net_income": 34455000000.0,
-      "ebitda": 45455000000.0,
+      "ebitda": null,
       "interest_expense": 298000000.0,
-      "depreciation_amortization": 6040000000.0
+      "depreciation_amortization": null
     },
     {
       "period": "2025-09-30",
@@ -40,9 +51,9 @@
       "gross_profit": 60977000000.0,
       "operating_income": 31228000000.0,
       "net_income": 34979000000.0,
-      "ebitda": 49741000000.0,
+      "ebitda": null,
       "interest_expense": 143000000.0,
-      "depreciation_amortization": 5611000000.0
+      "depreciation_amortization": null
     },
     {
       "period": "2025-06-30",
@@ -50,9 +61,9 @@
       "gross_profit": 57389000000.0,
       "operating_income": 31271000000.0,
       "net_income": 28196000000.0,
-      "ebitda": 39192000000.0,
+      "ebitda": null,
       "interest_expense": 261000000.0,
-      "depreciation_amortization": 4998000000.0
+      "depreciation_amortization": null
     },
     {
       "period": "2025-03-31",
@@ -60,9 +71,9 @@
       "gross_profit": 53873000000.0,
       "operating_income": 30606000000.0,
       "net_income": 34540000000.0,
-      "ebitda": 46310000000.0,
+      "ebitda": null,
       "interest_expense": 34000000.0,
-      "depreciation_amortization": 4487000000.0
+      "depreciation_amortization": null
     },
     {
       "period": "2024-12-31",
@@ -70,39 +81,130 @@
       "gross_profit": 55856000000.0,
       "operating_income": 30972000000.0,
       "net_income": 26536000000.0,
-      "ebitda": 36501000000.0,
+      "ebitda": null,
       "interest_expense": 53000000.0,
-      "depreciation_amortization": 4205000000.0
+      "depreciation_amortization": null
     },
     {
       "period": "2024-09-30",
-      "revenue": null,
-      "gross_profit": null,
-      "operating_income": null,
-      "net_income": null,
+      "revenue": 88268000000.0,
+      "gross_profit": 51794000000.0,
+      "operating_income": 28521000000.0,
+      "net_income": 26301000000.0,
       "ebitda": null,
-      "interest_expense": null,
+      "interest_expense": 54000000.0,
       "depreciation_amortization": null
     },
     {
       "period": "2024-06-30",
-      "revenue": null,
-      "gross_profit": null,
-      "operating_income": null,
-      "net_income": null,
+      "revenue": 84742000000.0,
+      "gross_profit": 49235000000.0,
+      "operating_income": 27425000000.0,
+      "net_income": 23619000000.0,
       "ebitda": null,
-      "interest_expense": null,
+      "interest_expense": 67000000.0,
+      "depreciation_amortization": null
+    },
+    {
+      "period": "2024-03-31",
+      "revenue": 80539000000.0,
+      "gross_profit": 46827000000.0,
+      "operating_income": 25472000000.0,
+      "net_income": 23662000000.0,
+      "ebitda": null,
+      "interest_expense": 94000000.0,
+      "depreciation_amortization": null
+    },
+    {
+      "period": "2023-12-31",
+      "revenue": 86310000000.0,
+      "gross_profit": 48735000000.0,
+      "operating_income": 23697000000.0,
+      "net_income": 20687000000.0,
+      "ebitda": null,
+      "interest_expense": 69000000.0,
+      "depreciation_amortization": null
+    },
+    {
+      "period": "2023-09-30",
+      "revenue": 76693000000.0,
+      "gross_profit": 43464000000.0,
+      "operating_income": 21343000000.0,
+      "net_income": 19689000000.0,
+      "ebitda": null,
+      "interest_expense": 116000000.0,
+      "depreciation_amortization": null
+    },
+    {
+      "period": "2023-06-30",
+      "revenue": 74604000000.0,
+      "gross_profit": 42688000000.0,
+      "operating_income": 21838000000.0,
+      "net_income": 18368000000.0,
+      "ebitda": null,
+      "interest_expense": 43000000.0,
+      "depreciation_amortization": null
+    },
+    {
+      "period": "2023-03-31",
+      "revenue": 69787000000.0,
+      "gross_profit": 39175000000.0,
+      "operating_income": 17415000000.0,
+      "net_income": 15051000000.0,
+      "ebitda": null,
+      "interest_expense": 80000000.0,
+      "depreciation_amortization": null
+    },
+    {
+      "period": "2022-12-31",
+      "revenue": 76048000000.0,
+      "gross_profit": 40706000000.0,
+      "operating_income": 18160000000.0,
+      "net_income": 13624000000.0,
+      "ebitda": null,
+      "interest_expense": 90000000.0,
+      "depreciation_amortization": null
+    },
+    {
+      "period": "2022-09-30",
+      "revenue": 69092000000.0,
+      "gross_profit": 37934000000.0,
+      "operating_income": 17135000000.0,
+      "net_income": 13910000000.0,
+      "ebitda": null,
+      "interest_expense": 101000000.0,
+      "depreciation_amortization": null
+    },
+    {
+      "period": "2022-06-30",
+      "revenue": 69685000000.0,
+      "gross_profit": 39581000000.0,
+      "operating_income": 19453000000.0,
+      "net_income": 16002000000.0,
+      "ebitda": null,
+      "interest_expense": 83000000.0,
       "depreciation_amortization": null
     }
   ],
   "balance": [
+    {
+      "period": "2026-03-31",
+      "total_assets": 703919000000.0,
+      "total_liabilities": 225173000000.0,
+      "equity": 478746000000.0,
+      "cash": 38063000000.0,
+      "total_debt": 77501000000.0,
+      "current_assets": 213753000000.0,
+      "current_liabilities": 111188000000.0,
+      "inventory": null
+    },
     {
       "period": "2025-12-31",
       "total_assets": 595281000000.0,
       "total_liabilities": 180016000000.0,
       "equity": 415265000000.0,
       "cash": 30708000000.0,
-      "total_debt": 59291000000.0,
+      "total_debt": 49085000000.0,
       "current_assets": 206038000000.0,
       "current_liabilities": 102745000000.0,
       "inventory": null
@@ -113,7 +215,7 @@
       "total_liabilities": 149602000000.0,
       "equity": 386867000000.0,
       "cash": 23090000000.0,
-      "total_debt": 33713000000.0,
+      "total_debt": 21607000000.0,
       "current_assets": 173947000000.0,
       "current_liabilities": 99550000000.0,
       "inventory": null
@@ -124,7 +226,7 @@
       "total_liabilities": 139137000000.0,
       "equity": 362916000000.0,
       "cash": 21036000000.0,
-      "total_debt": 35559000000.0,
+      "total_debt": 23607000000.0,
       "current_assets": 166216000000.0,
       "current_liabilities": 87310000000.0,
       "inventory": null
@@ -135,7 +237,7 @@
       "total_liabilities": 130107000000.0,
       "equity": 345267000000.0,
       "cash": 23264000000.0,
-      "total_debt": 23564000000.0,
+      "total_debt": 10886000000.0,
       "current_assets": 162052000000.0,
       "current_liabilities": 91654000000.0,
       "inventory": null
@@ -146,35 +248,131 @@
       "total_liabilities": 125172000000.0,
       "equity": 325084000000.0,
       "cash": 23466000000.0,
-      "total_debt": 22574000000.0,
+      "total_debt": 12000000000.0,
       "current_assets": 163711000000.0,
       "current_liabilities": 89122000000.0,
       "inventory": null
     },
     {
       "period": "2024-09-30",
-      "total_assets": null,
-      "total_liabilities": null,
-      "equity": null,
-      "cash": null,
-      "total_debt": null,
-      "current_assets": null,
-      "current_liabilities": null,
+      "total_assets": 430266000000.0,
+      "total_liabilities": 116147000000.0,
+      "equity": 314119000000.0,
+      "cash": 19959000000.0,
+      "total_debt": 12297000000.0,
+      "current_assets": 157541000000.0,
+      "current_liabilities": 80803000000.0,
       "inventory": null
     },
     {
       "period": "2024-06-30",
-      "total_assets": null,
-      "total_liabilities": null,
-      "equity": null,
-      "cash": null,
-      "total_debt": null,
-      "current_assets": null,
-      "current_liabilities": null,
+      "total_assets": 414770000000.0,
+      "total_liabilities": 114017000000.0,
+      "equity": 300753000000.0,
+      "cash": 27225000000.0,
+      "total_debt": 13238000000.0,
+      "current_assets": 161995000000.0,
+      "current_liabilities": 77913000000.0,
       "inventory": null
+    },
+    {
+      "period": "2024-03-31",
+      "total_assets": 407350000000.0,
+      "total_liabilities": 114506000000.0,
+      "equity": 292844000000.0,
+      "cash": 24493000000.0,
+      "total_debt": 13228000000.0,
+      "current_assets": 165471000000.0,
+      "current_liabilities": 76997000000.0,
+      "inventory": null
+    },
+    {
+      "period": "2023-12-31",
+      "total_assets": 402392000000.0,
+      "total_liabilities": 119013000000.0,
+      "equity": 283379000000.0,
+      "cash": 24048000000.0,
+      "total_debt": 13000000000.0,
+      "current_assets": 171530000000.0,
+      "current_liabilities": 81814000000.0,
+      "inventory": null
+    },
+    {
+      "period": "2023-09-30",
+      "total_assets": 396711000000.0,
+      "total_liabilities": 123509000000.0,
+      "equity": 273202000000.0,
+      "cash": 30702000000.0,
+      "total_debt": 13781000000.0,
+      "current_assets": 176310000000.0,
+      "current_liabilities": 86295000000.0,
+      "inventory": 2957000000.0
+    },
+    {
+      "period": "2023-06-30",
+      "total_assets": 383044000000.0,
+      "total_liabilities": 115903000000.0,
+      "equity": 267141000000.0,
+      "cash": 25929000000.0,
+      "total_debt": 13705000000.0,
+      "current_assets": 168788000000.0,
+      "current_liabilities": 77709000000.0,
+      "inventory": 2231000000.0
+    },
+    {
+      "period": "2023-03-31",
+      "total_assets": 369491000000.0,
+      "total_liabilities": 108597000000.0,
+      "equity": 260894000000.0,
+      "cash": 25924000000.0,
+      "total_debt": 13697000000.0,
+      "current_assets": 161985000000.0,
+      "current_liabilities": 68854000000.0,
+      "inventory": 2315000000.0
+    },
+    {
+      "period": "2022-12-31",
+      "total_assets": 365264000000.0,
+      "total_liabilities": 109120000000.0,
+      "equity": 256144000000.0,
+      "cash": 21879000000.0,
+      "total_debt": 15312000000.0,
+      "current_assets": 164795000000.0,
+      "current_liabilities": 69300000000.0,
+      "inventory": 2670000000.0
+    },
+    {
+      "period": "2022-09-30",
+      "total_assets": 358255000000.0,
+      "total_liabilities": 104629000000.0,
+      "equity": 253626000000.0,
+      "cash": 21984000000.0,
+      "total_debt": 14653000000.0,
+      "current_assets": 166109000000.0,
+      "current_liabilities": 65979000000.0,
+      "inventory": 3156000000.0
+    },
+    {
+      "period": "2022-06-30",
+      "total_assets": 355185000000.0,
+      "total_liabilities": 99766000000.0,
+      "equity": 255419000000.0,
+      "cash": 17936000000.0,
+      "total_debt": 14734000000.0,
+      "current_assets": 172371000000.0,
+      "current_liabilities": 61354000000.0,
+      "inventory": 1980000000.0
     }
   ],
   "cashflow": [
+    {
+      "period": "2026-03-31",
+      "operating_cf": 45790000000.0,
+      "investing_cf": -63389000000.0,
+      "financing_cf": 25077000000.0,
+      "capex": -35674000000.0,
+      "free_cash_flow": 10116000000.0
+    },
     {
       "period": "2025-12-31",
       "operating_cf": 52402000000.0,
@@ -214,6 +412,2798 @@
       "financing_cf": -19036000000.0,
       "capex": -14276000000.0,
       "free_cash_flow": 24837000000.0
+    },
+    {
+      "period": "2024-09-30",
+      "operating_cf": 30698000000.0,
+      "investing_cf": -18011000000.0,
+      "financing_cf": -20094000000.0,
+      "capex": -13061000000.0,
+      "free_cash_flow": 17637000000.0
+    },
+    {
+      "period": "2024-06-30",
+      "operating_cf": 26640000000.0,
+      "investing_cf": -2781000000.0,
+      "financing_cf": -20889000000.0,
+      "capex": -13186000000.0,
+      "free_cash_flow": 13454000000.0
+    },
+    {
+      "period": "2024-03-31",
+      "operating_cf": 28848000000.0,
+      "investing_cf": -8564000000.0,
+      "financing_cf": -19714000000.0,
+      "capex": -12012000000.0,
+      "free_cash_flow": 16836000000.0
+    },
+    {
+      "period": "2023-12-31",
+      "operating_cf": 18915000000.0,
+      "investing_cf": -6167000000.0,
+      "financing_cf": -19308000000.0,
+      "capex": -11019000000.0,
+      "free_cash_flow": 7896000000.0
+    },
+    {
+      "period": "2023-09-30",
+      "operating_cf": 30656000000.0,
+      "investing_cf": -7150000000.0,
+      "financing_cf": -18382000000.0,
+      "capex": -8055000000.0,
+      "free_cash_flow": 22601000000.0
+    },
+    {
+      "period": "2023-06-30",
+      "operating_cf": 28666000000.0,
+      "investing_cf": -10800000000.0,
+      "financing_cf": -17835000000.0,
+      "capex": -6888000000.0,
+      "free_cash_flow": 21778000000.0
+    },
+    {
+      "period": "2023-03-31",
+      "operating_cf": 23509000000.0,
+      "investing_cf": -2946000000.0,
+      "financing_cf": -16568000000.0,
+      "capex": -6289000000.0,
+      "free_cash_flow": 17220000000.0
+    },
+    {
+      "period": "2022-12-31",
+      "operating_cf": 23614000000.0,
+      "investing_cf": -6227000000.0,
+      "financing_cf": -17629000000.0,
+      "capex": -7595000000.0,
+      "free_cash_flow": 16019000000.0
+    },
+    {
+      "period": "2022-09-30",
+      "operating_cf": 23353000000.0,
+      "investing_cf": -833000000.0,
+      "financing_cf": -18097000000.0,
+      "capex": -7276000000.0,
+      "free_cash_flow": 16077000000.0
+    },
+    {
+      "period": "2022-06-30",
+      "operating_cf": 19422000000.0,
+      "investing_cf": -4187000000.0,
+      "financing_cf": -17817000000.0,
+      "capex": -6828000000.0,
+      "free_cash_flow": 12594000000.0
+    }
+  ],
+  "prices": [
+    {
+      "date": "2025-07-03",
+      "open": 177.9908,
+      "high": 179.1575,
+      "low": 176.545,
+      "close": 179.0179,
+      "volume": 21689729
+    },
+    {
+      "date": "2025-07-07",
+      "open": 178.5492,
+      "high": 178.7855,
+      "low": 175.1789,
+      "close": 176.2857,
+      "volume": 34175648
+    },
+    {
+      "date": "2025-07-08",
+      "open": 177.3427,
+      "high": 177.4424,
+      "low": 172.317,
+      "close": 173.8626,
+      "volume": 40442535
+    },
+    {
+      "date": "2025-07-09",
+      "open": 174.7501,
+      "high": 178.9281,
+      "low": 172.2772,
+      "close": 176.1162,
+      "volume": 43025594
+    },
+    {
+      "date": "2025-07-10",
+      "open": 175.129,
+      "high": 177.92,
+      "low": 173.8826,
+      "close": 177.1133,
+      "volume": 29252386
+    },
+    {
+      "date": "2025-07-11",
+      "open": 176.2807,
+      "high": 180.9125,
+      "low": 175.9766,
+      "close": 179.676,
+      "volume": 34282922
+    },
+    {
+      "date": "2025-07-14",
+      "open": 180.4937,
+      "high": 183.1461,
+      "low": 179.1675,
+      "close": 181.0421,
+      "volume": 32536632
+    },
+    {
+      "date": "2025-07-15",
+      "open": 182.2885,
+      "high": 183.6945,
+      "low": 181.082,
+      "close": 181.4808,
+      "volume": 33448251
+    },
+    {
+      "date": "2025-07-16",
+      "open": 182.7123,
+      "high": 183.8012,
+      "low": 181.5107,
+      "close": 182.4481,
+      "volume": 33104193
+    },
+    {
+      "date": "2025-07-17",
+      "open": 181.6204,
+      "high": 183.535,
+      "low": 179.9652,
+      "close": 183.0563,
+      "volume": 31992565
+    },
+    {
+      "date": "2025-07-18",
+      "open": 184.8711,
+      "high": 185.8882,
+      "low": 183.186,
+      "close": 184.5321,
+      "volume": 34014509
+    },
+    {
+      "date": "2025-07-21",
+      "open": 185.7187,
+      "high": 189.7422,
+      "low": 185.619,
+      "close": 189.5577,
+      "volume": 45803129
+    },
+    {
+      "date": "2025-07-22",
+      "open": 190.9487,
+      "high": 191.0983,
+      "low": 186.9253,
+      "close": 190.7942,
+      "volume": 44660215
+    },
+    {
+      "date": "2025-07-23",
+      "open": 190.9537,
+      "high": 191.9808,
+      "low": 188.6404,
+      "close": 189.6874,
+      "volume": 58681948
+    },
+    {
+      "date": "2025-07-24",
+      "open": 196.468,
+      "high": 197.3853,
+      "low": 190.4552,
+      "close": 191.6218,
+      "volume": 74881687
+    },
+    {
+      "date": "2025-07-25",
+      "open": 191.4324,
+      "high": 193.7757,
+      "low": 190.7144,
+      "close": 192.6289,
+      "volume": 39785863
+    },
+    {
+      "date": "2025-07-28",
+      "open": 193.0976,
+      "high": 193.4965,
+      "low": 190.2956,
+      "close": 192.0307,
+      "volume": 38139504
+    },
+    {
+      "date": "2025-07-29",
+      "open": 191.8811,
+      "high": 195.3611,
+      "low": 191.5321,
+      "close": 195.1916,
+      "volume": 41389153
+    },
+    {
+      "date": "2025-07-30",
+      "open": 195.042,
+      "high": 197.0362,
+      "low": 194.1296,
+      "close": 195.9694,
+      "volume": 32445405
+    },
+    {
+      "date": "2025-07-31",
+      "open": 195.1517,
+      "high": 195.4309,
+      "low": 190.5449,
+      "close": 191.3526,
+      "volume": 51329163
+    },
+    {
+      "date": "2025-08-01",
+      "open": 188.4858,
+      "high": 190.2856,
+      "low": 187.2842,
+      "close": 188.5905,
+      "volume": 34832181
+    },
+    {
+      "date": "2025-08-04",
+      "open": 189.7472,
+      "high": 194.713,
+      "low": 189.5777,
+      "close": 194.4836,
+      "volume": 31547350
+    },
+    {
+      "date": "2025-08-05",
+      "open": 194.1546,
+      "high": 197.2955,
+      "low": 193.3319,
+      "close": 194.1147,
+      "volume": 31602340
+    },
+    {
+      "date": "2025-08-06",
+      "open": 193.9452,
+      "high": 196.0691,
+      "low": 193.1175,
+      "close": 195.5306,
+      "volume": 21562908
+    },
+    {
+      "date": "2025-08-07",
+      "open": 196.4979,
+      "high": 196.9765,
+      "low": 193.7757,
+      "close": 195.9594,
+      "volume": 26321811
+    },
+    {
+      "date": "2025-08-08",
+      "open": 196.6574,
+      "high": 202.032,
+      "low": 196.6076,
+      "close": 200.8454,
+      "volume": 39161826
+    },
+    {
+      "date": "2025-08-11",
+      "open": 200.3618,
+      "high": 200.9003,
+      "low": 198.5021,
+      "close": 200.4266,
+      "volume": 25832435
+    },
+    {
+      "date": "2025-08-12",
+      "open": 200.7906,
+      "high": 203.9167,
+      "low": 200.0178,
+      "close": 202.76,
+      "volume": 30424452
+    },
+    {
+      "date": "2025-08-13",
+      "open": 203.5477,
+      "high": 203.9466,
+      "low": 196.9467,
+      "close": 201.3839,
+      "volume": 28342922
+    },
+    {
+      "date": "2025-08-14",
+      "open": 200.9252,
+      "high": 203.8568,
+      "low": 200.651,
+      "close": 202.3611,
+      "volume": 25230427
+    },
+    {
+      "date": "2025-08-15",
+      "open": 203.2685,
+      "high": 205.8511,
+      "low": 200.7058,
+      "close": 203.3184,
+      "volume": 34931422
+    },
+    {
+      "date": "2025-08-18",
+      "open": 203.6175,
+      "high": 204.6795,
+      "low": 201.9124,
+      "close": 202.9195,
+      "volume": 18526594
+    },
+    {
+      "date": "2025-08-19",
+      "open": 202.4508,
+      "high": 202.8597,
+      "low": 199.3896,
+      "close": 200.995,
+      "volume": 24240233
+    },
+    {
+      "date": "2025-08-20",
+      "open": 200.1574,
+      "high": 200.7058,
+      "low": 196.0342,
+      "close": 198.7514,
+      "volume": 28955498
+    },
+    {
+      "date": "2025-08-21",
+      "open": 199.1752,
+      "high": 201.9024,
+      "low": 198.8611,
+      "close": 199.1802,
+      "volume": 19774633
+    },
+    {
+      "date": "2025-08-22",
+      "open": 202.1517,
+      "high": 207.9451,
+      "low": 200.7258,
+      "close": 205.5021,
+      "volume": 42827040
+    },
+    {
+      "date": "2025-08-25",
+      "open": 205.8411,
+      "high": 209.9195,
+      "low": 204.6944,
+      "close": 207.8953,
+      "volume": 29928878
+    },
+    {
+      "date": "2025-08-26",
+      "open": 206.9181,
+      "high": 207.2571,
+      "low": 205.1132,
+      "close": 206.5491,
+      "volume": 28464130
+    },
+    {
+      "date": "2025-08-27",
+      "open": 205.1132,
+      "high": 208.3141,
+      "low": 205.0634,
+      "close": 206.8882,
+      "volume": 23022850
+    },
+    {
+      "date": "2025-08-28",
+      "open": 206.6588,
+      "high": 211.6146,
+      "low": 206.3098,
+      "close": 211.0363,
+      "volume": 32339307
+    },
+    {
+      "date": "2025-08-29",
+      "open": 209.9095,
+      "high": 214.0327,
+      "low": 209.6004,
+      "close": 212.3027,
+      "volume": 39728364
+    },
+    {
+      "date": "2025-09-02",
+      "open": 207.8454,
+      "high": 211.0712,
+      "low": 205.6068,
+      "close": 210.7471,
+      "volume": 47523037
+    },
+    {
+      "date": "2025-09-03",
+      "open": 225.5647,
+      "high": 230.6502,
+      "low": 224.1488,
+      "close": 230.002,
+      "volume": 102090277
+    },
+    {
+      "date": "2025-09-04",
+      "open": 228.9949,
+      "high": 231.7072,
+      "low": 225.465,
+      "close": 231.6374,
+      "volume": 51684167
+    },
+    {
+      "date": "2025-09-05",
+      "open": 231.5376,
+      "high": 235.0875,
+      "low": 231.2385,
+      "close": 234.3296,
+      "volume": 46588925
+    },
+    {
+      "date": "2025-09-08",
+      "open": 235.009,
+      "high": 237.6638,
+      "low": 233.2125,
+      "close": 233.5818,
+      "volume": 32474743
+    },
+    {
+      "date": "2025-09-09",
+      "open": 233.7065,
+      "high": 239.9992,
+      "low": 232.7724,
+      "close": 239.1608,
+      "volume": 38060959
+    },
+    {
+      "date": "2025-09-10",
+      "open": 238.4323,
+      "high": 241.1869,
+      "low": 237.3843,
+      "close": 238.7017,
+      "volume": 35141074
+    },
+    {
+      "date": "2025-09-11",
+      "open": 239.4104,
+      "high": 241.7757,
+      "low": 235.7875,
+      "close": 239.8994,
+      "volume": 30599328
+    },
+    {
+      "date": "2025-09-12",
+      "open": 239.8994,
+      "high": 241.6011,
+      "low": 237.534,
+      "close": 240.3286,
+      "volume": 26771610
+    },
+    {
+      "date": "2025-09-15",
+      "open": 244.181,
+      "high": 251.9157,
+      "low": 244.181,
+      "close": 251.1174,
+      "volume": 58383796
+    },
+    {
+      "date": "2025-09-16",
+      "open": 251.5865,
+      "high": 252.5446,
+      "low": 248.9816,
+      "close": 250.6683,
+      "volume": 34109720
+    },
+    {
+      "date": "2025-09-17",
+      "open": 250.7282,
+      "high": 251.1074,
+      "low": 245.7978,
+      "close": 249.0415,
+      "volume": 34107992
+    },
+    {
+      "date": "2025-09-18",
+      "open": 251.1873,
+      "high": 253.4927,
+      "low": 249.3109,
+      "close": 251.5366,
+      "volume": 31239474
+    },
+    {
+      "date": "2025-09-19",
+      "open": 252.7542,
+      "high": 255.4988,
+      "low": 251.317,
+      "close": 254.2213,
+      "volume": 55571424
+    },
+    {
+      "date": "2025-09-22",
+      "open": 253.9319,
+      "high": 255.2792,
+      "low": 249.81,
+      "close": 252.0356,
+      "volume": 32290538
+    },
+    {
+      "date": "2025-09-23",
+      "open": 252.5446,
+      "high": 253.862,
+      "low": 249.9896,
+      "close": 251.1673,
+      "volume": 26628016
+    },
+    {
+      "date": "2025-09-24",
+      "open": 251.1673,
+      "high": 251.856,
+      "low": 245.9575,
+      "close": 246.6561,
+      "volume": 28201003
+    },
+    {
+      "date": "2025-09-25",
+      "open": 243.9215,
+      "high": 246.0074,
+      "low": 240.2687,
+      "close": 245.3088,
+      "volume": 31020383
+    },
+    {
+      "date": "2025-09-26",
+      "open": 246.5813,
+      "high": 248.9317,
+      "low": 245.4884,
+      "close": 246.0573,
+      "volume": 18503194
+    },
+    {
+      "date": "2025-09-29",
+      "open": 247.3648,
+      "high": 250.6569,
+      "low": 242.2947,
+      "close": 243.5722,
+      "volume": 32505777
+    },
+    {
+      "date": "2025-09-30",
+      "open": 242.3346,
+      "high": 242.8137,
+      "low": 238.7766,
+      "close": 242.624,
+      "volume": 34724346
+    },
+    {
+      "date": "2025-10-01",
+      "open": 240.2787,
+      "high": 245.8178,
+      "low": 238.1428,
+      "close": 244.4205,
+      "volume": 31658234
+    },
+    {
+      "date": "2025-10-02",
+      "open": 244.67,
+      "high": 246.3268,
+      "low": 241.8256,
+      "close": 245.209,
+      "volume": 25483298
+    },
+    {
+      "date": "2025-10-03",
+      "open": 244.0113,
+      "high": 245.8178,
+      "low": 241.1819,
+      "close": 244.8696,
+      "volume": 30249559
+    },
+    {
+      "date": "2025-10-06",
+      "open": 244.3008,
+      "high": 250.828,
+      "low": 244.1012,
+      "close": 249.9397,
+      "volume": 28894653
+    },
+    {
+      "date": "2025-10-07",
+      "open": 247.7839,
+      "high": 249.9497,
+      "low": 245.0393,
+      "close": 245.2788,
+      "volume": 23181285
+    },
+    {
+      "date": "2025-10-08",
+      "open": 244.4804,
+      "high": 245.5234,
+      "low": 243.3426,
+      "close": 244.1411,
+      "volume": 21307104
+    },
+    {
+      "date": "2025-10-09",
+      "open": 243.9914,
+      "high": 244.2808,
+      "low": 238.6818,
+      "close": 241.0571,
+      "volume": 27892086
+    },
+    {
+      "date": "2025-10-10",
+      "open": 240.9573,
+      "high": 243.6121,
+      "low": 235.3783,
+      "close": 236.1068,
+      "volume": 33180323
+    },
+    {
+      "date": "2025-10-13",
+      "open": 239.7397,
+      "high": 244.0213,
+      "low": 239.2407,
+      "close": 243.672,
+      "volume": 24995028
+    },
+    {
+      "date": "2025-10-14",
+      "open": 240.7577,
+      "high": 246.6362,
+      "low": 240.0391,
+      "close": 244.9694,
+      "volume": 22111572
+    },
+    {
+      "date": "2025-10-15",
+      "open": 246.7609,
+      "high": 251.6164,
+      "low": 245.5084,
+      "close": 250.5385,
+      "volume": 27007690
+    },
+    {
+      "date": "2025-10-16",
+      "open": 251.2721,
+      "high": 256.4569,
+      "low": 249.6113,
+      "close": 250.9677,
+      "volume": 27997159
+    },
+    {
+      "date": "2025-10-17",
+      "open": 250.2691,
+      "high": 253.7223,
+      "low": 247.3248,
+      "close": 252.8041,
+      "volume": 29671629
+    },
+    {
+      "date": "2025-10-20",
+      "open": 254.1914,
+      "high": 256.8262,
+      "low": 253.7323,
+      "close": 256.0477,
+      "volume": 22350155
+    },
+    {
+      "date": "2025-10-21",
+      "open": 254.2413,
+      "high": 254.381,
+      "low": 243.672,
+      "close": 249.9696,
+      "volume": 47312098
+    },
+    {
+      "date": "2025-10-22",
+      "open": 253.872,
+      "high": 255.8581,
+      "low": 248.8019,
+      "close": 251.1972,
+      "volume": 35029370
+    },
+    {
+      "date": "2025-10-23",
+      "open": 252.4847,
+      "high": 254.5407,
+      "low": 251.3569,
+      "close": 252.5845,
+      "volume": 19901425
+    },
+    {
+      "date": "2025-10-24",
+      "open": 256.0777,
+      "high": 261.1677,
+      "low": 254.8151,
+      "close": 259.4111,
+      "volume": 28655126
+    },
+    {
+      "date": "2025-10-27",
+      "open": 264.2965,
+      "high": 269.6111,
+      "low": 263.7626,
+      "close": 268.7428,
+      "volume": 35235231
+    },
+    {
+      "date": "2025-10-28",
+      "open": 269.162,
+      "high": 270.2,
+      "low": 265.9782,
+      "close": 266.9463,
+      "volume": 29738564
+    },
+    {
+      "date": "2025-10-29",
+      "open": 267.2258,
+      "high": 274.7969,
+      "low": 267.1459,
+      "close": 274.0324,
+      "volume": 43580277
+    },
+    {
+      "date": "2025-10-30",
+      "open": 291.0191,
+      "high": 291.0191,
+      "low": 279.5117,
+      "close": 280.9289,
+      "volume": 74875990
+    },
+    {
+      "date": "2025-10-31",
+      "open": 282.6555,
+      "high": 285.4401,
+      "low": 276.4876,
+      "close": 280.6395,
+      "volume": 39267945
+    },
+    {
+      "date": "2025-11-03",
+      "open": 281.6225,
+      "high": 284.971,
+      "low": 279.2522,
+      "close": 283.1645,
+      "volume": 29785996
+    },
+    {
+      "date": "2025-11-04",
+      "open": 276.2082,
+      "high": 280.7193,
+      "low": 275.7191,
+      "close": 276.9966,
+      "volume": 30078369
+    },
+    {
+      "date": "2025-11-05",
+      "open": 278.324,
+      "high": 285.8542,
+      "low": 276.797,
+      "close": 283.7534,
+      "volume": 30283252
+    },
+    {
+      "date": "2025-11-06",
+      "open": 284.7714,
+      "high": 287.7855,
+      "low": 280.5896,
+      "close": 284.1925,
+      "volume": 37173648
+    },
+    {
+      "date": "2025-11-07",
+      "open": 282.6505,
+      "high": 283.2244,
+      "low": 274.6512,
+      "close": 278.2841,
+      "volume": 34479588
+    },
+    {
+      "date": "2025-11-10",
+      "open": 283.8632,
+      "high": 290.2307,
+      "low": 282.3012,
+      "close": 289.532,
+      "volume": 29557309
+    },
+    {
+      "date": "2025-11-11",
+      "open": 287.1816,
+      "high": 291.3435,
+      "low": 286.7575,
+      "close": 290.7397,
+      "volume": 19842136
+    },
+    {
+      "date": "2025-11-12",
+      "open": 291.1039,
+      "high": 291.4333,
+      "low": 283.1346,
+      "close": 286.1487,
+      "volume": 24829923
+    },
+    {
+      "date": "2025-11-13",
+      "open": 281.7872,
+      "high": 282.2862,
+      "low": 276.6972,
+      "close": 278.0246,
+      "volume": 29494040
+    },
+    {
+      "date": "2025-11-14",
+      "open": 270.8736,
+      "high": 278.0146,
+      "low": 270.17,
+      "close": 275.8688,
+      "volume": 31647227
+    },
+    {
+      "date": "2025-11-17",
+      "open": 285.2155,
+      "high": 293.3745,
+      "low": 283.0148,
+      "close": 284.462,
+      "volume": 52670192
+    },
+    {
+      "date": "2025-11-18",
+      "open": 287.3513,
+      "high": 288.2346,
+      "low": 277.6553,
+      "close": 283.7234,
+      "volume": 49158743
+    },
+    {
+      "date": "2025-11-19",
+      "open": 286.5978,
+      "high": 303.2152,
+      "low": 286.0688,
+      "close": 292.2367,
+      "volume": 68198944
+    },
+    {
+      "date": "2025-11-20",
+      "open": 303.9438,
+      "high": 305.8201,
+      "low": 288.1048,
+      "close": 288.8833,
+      "volume": 62025218
+    },
+    {
+      "date": "2025-11-21",
+      "open": 295.8347,
+      "high": 303.325,
+      "low": 293.2697,
+      "close": 299.0733,
+      "volume": 74137697
+    },
+    {
+      "date": "2025-11-24",
+      "open": 310.5209,
+      "high": 318.8545,
+      "low": 308.9889,
+      "close": 317.9563,
+      "volume": 85165123
+    },
+    {
+      "date": "2025-11-25",
+      "open": 325.5713,
+      "high": 328.1862,
+      "low": 317.0281,
+      "close": 322.8068,
+      "volume": 88632074
+    },
+    {
+      "date": "2025-11-26",
+      "open": 320.0522,
+      "high": 323.8647,
+      "low": 316.1698,
+      "close": 319.3236,
+      "volume": 51373361
+    },
+    {
+      "date": "2025-11-28",
+      "open": 322.7319,
+      "high": 326.2101,
+      "low": 316.1698,
+      "close": 319.5531,
+      "volume": 26018568
+    },
+    {
+      "date": "2025-12-01",
+      "open": 317.078,
+      "high": 319.2238,
+      "low": 313.2755,
+      "close": 314.2735,
+      "volume": 41182956
+    },
+    {
+      "date": "2025-12-02",
+      "open": 316.1199,
+      "high": 317.7567,
+      "low": 313.2954,
+      "close": 315.1917,
+      "volume": 35854744
+    },
+    {
+      "date": "2025-12-03",
+      "open": 315.2715,
+      "high": 320.9504,
+      "low": 313.485,
+      "close": 319.0042,
+      "volume": 41838317
+    },
+    {
+      "date": "2025-12-04",
+      "open": 321.5941,
+      "high": 321.7289,
+      "low": 314.0839,
+      "close": 316.9982,
+      "volume": 31240924
+    },
+    {
+      "date": "2025-12-05",
+      "open": 318.8645,
+      "high": 322.5273,
+      "low": 318.5401,
+      "close": 320.641,
+      "volume": 28851705
+    },
+    {
+      "date": "2025-12-08",
+      "open": 319.6372,
+      "high": 320.0267,
+      "low": 310.8205,
+      "close": 313.3154,
+      "volume": 33403895
+    },
+    {
+      "date": "2025-12-09",
+      "open": 311.9671,
+      "high": 317.5799,
+      "low": 311.4927,
+      "close": 316.671,
+      "volume": 30089731
+    },
+    {
+      "date": "2025-12-10",
+      "open": 315.4227,
+      "high": 320.8956,
+      "low": 314.2741,
+      "close": 319.797,
+      "volume": 33428923
+    },
+    {
+      "date": "2025-12-11",
+      "open": 319.6672,
+      "high": 320.7058,
+      "low": 308.202,
+      "close": 312.027,
+      "volume": 42353697
+    },
+    {
+      "date": "2025-12-12",
+      "open": 313.2954,
+      "high": 314.4639,
+      "low": 305.1659,
+      "close": 308.8911,
+      "volume": 35940170
+    },
+    {
+      "date": "2025-12-15",
+      "open": 310.9135,
+      "high": 311.0183,
+      "low": 304.4868,
+      "close": 307.8225,
+      "volume": 29151889
+    },
+    {
+      "date": "2025-12-16",
+      "open": 304.5517,
+      "high": 310.3692,
+      "low": 302.1997,
+      "close": 306.1746,
+      "volume": 30585020
+    },
+    {
+      "date": "2025-12-17",
+      "open": 307.6127,
+      "high": 307.6926,
+      "low": 295.7381,
+      "close": 296.3373,
+      "volume": 43930358
+    },
+    {
+      "date": "2025-12-18",
+      "open": 301.3309,
+      "high": 303.568,
+      "low": 298.8449,
+      "close": 302.0699,
+      "volume": 33518048
+    },
+    {
+      "date": "2025-12-19",
+      "open": 301.3408,
+      "high": 306.8537,
+      "low": 300.5818,
+      "close": 306.7638,
+      "volume": 59943239
+    },
+    {
+      "date": "2025-12-22",
+      "open": 309.4753,
+      "high": 309.73,
+      "low": 304.9062,
+      "close": 309.3805,
+      "volume": 26429937
+    },
+    {
+      "date": "2025-12-23",
+      "open": 309.2257,
+      "high": 314.5338,
+      "low": 308.9211,
+      "close": 313.9446,
+      "volume": 25478670
+    },
+    {
+      "date": "2025-12-24",
+      "open": 314.364,
+      "high": 314.6736,
+      "low": 311.5177,
+      "close": 313.6849,
+      "volume": 10097361
+    },
+    {
+      "date": "2025-12-26",
+      "open": 314.0744,
+      "high": 314.6786,
+      "low": 311.8722,
+      "close": 313.1056,
+      "volume": 10899017
+    },
+    {
+      "date": "2025-12-29",
+      "open": 310.9634,
+      "high": 313.615,
+      "low": 310.2194,
+      "close": 313.1556,
+      "volume": 19621777
+    },
+    {
+      "date": "2025-12-30",
+      "open": 312.0969,
+      "high": 316.5412,
+      "low": 312.057,
+      "close": 313.4452,
+      "volume": 17380888
+    },
+    {
+      "date": "2025-12-31",
+      "open": 312.4415,
+      "high": 314.1743,
+      "low": 311.0383,
+      "close": 312.5963,
+      "volume": 16377689
+    },
+    {
+      "date": "2026-01-02",
+      "open": 316.4913,
+      "high": 322.0841,
+      "low": 309.9297,
+      "close": 314.7435,
+      "volume": 32009385
+    },
+    {
+      "date": "2026-01-05",
+      "open": 317.2453,
+      "high": 318.6035,
+      "low": 314.2242,
+      "close": 316.1317,
+      "volume": 30195597
+    },
+    {
+      "date": "2026-01-06",
+      "open": 315.9919,
+      "high": 320.5261,
+      "low": 311.3779,
+      "close": 313.9346,
+      "volume": 31212101
+    },
+    {
+      "date": "2026-01-07",
+      "open": 313.9546,
+      "high": 325.7293,
+      "low": 313.7848,
+      "close": 321.5647,
+      "volume": 35104425
+    },
+    {
+      "date": "2026-01-08",
+      "open": 328.5407,
+      "high": 329.8936,
+      "low": 321.0853,
+      "close": 325.0203,
+      "volume": 31896101
+    },
+    {
+      "date": "2026-01-09",
+      "open": 326.6681,
+      "high": 330.4033,
+      "low": 325.3798,
+      "close": 328.1462,
+      "volume": 26214166
+    },
+    {
+      "date": "2026-01-12",
+      "open": 325.3798,
+      "high": 333.6092,
+      "low": 324.5808,
+      "close": 331.432,
+      "volume": 33923928
+    },
+    {
+      "date": "2026-01-13",
+      "open": 334.518,
+      "high": 340.0508,
+      "low": 333.1897,
+      "close": 335.5367,
+      "volume": 33517607
+    },
+    {
+      "date": "2026-01-14",
+      "open": 334.6279,
+      "high": 336.086,
+      "low": 330.0538,
+      "close": 335.4068,
+      "volume": 28525571
+    },
+    {
+      "date": "2026-01-15",
+      "open": 337.2145,
+      "high": 337.2545,
+      "low": 330.3134,
+      "close": 332.3508,
+      "volume": 28442406
+    },
+    {
+      "date": "2026-01-16",
+      "open": 333.9787,
+      "high": 334.2184,
+      "low": 327.2773,
+      "close": 329.5744,
+      "volume": 40341637
+    },
+    {
+      "date": "2026-01-20",
+      "open": 320.4562,
+      "high": 327.3073,
+      "low": 320.0167,
+      "close": 321.5847,
+      "volume": 34808916
+    },
+    {
+      "date": "2026-01-21",
+      "open": 320.5061,
+      "high": 332.0511,
+      "low": 318.9399,
+      "close": 327.9565,
+      "volume": 35386603
+    },
+    {
+      "date": "2026-01-22",
+      "open": 334.0186,
+      "high": 334.7177,
+      "low": 328.326,
+      "close": 330.1137,
+      "volume": 26253640
+    },
+    {
+      "date": "2026-01-23",
+      "open": 332.0562,
+      "high": 333.2585,
+      "low": 327.0277,
+      "close": 327.507,
+      "volume": 27279974
+    },
+    {
+      "date": "2026-01-26",
+      "open": 327.3822,
+      "high": 335.4068,
+      "low": 326.5782,
+      "close": 332.8302,
+      "volume": 26042120
+    },
+    {
+      "date": "2026-01-27",
+      "open": 334.9325,
+      "high": 337.4742,
+      "low": 333.0499,
+      "close": 334.1185,
+      "volume": 19722250
+    },
+    {
+      "date": "2026-01-28",
+      "open": 335.6266,
+      "high": 337.0997,
+      "low": 331.5119,
+      "close": 335.5766,
+      "volume": 27434434
+    },
+    {
+      "date": "2026-01-29",
+      "open": 339.8611,
+      "high": 341.8485,
+      "low": 326.1188,
+      "close": 337.8137,
+      "volume": 39785612
+    },
+    {
+      "date": "2026-01-30",
+      "open": 339.5615,
+      "high": 339.5615,
+      "low": 331.8564,
+      "close": 337.5641,
+      "volume": 31023954
+    },
+    {
+      "date": "2026-02-02",
+      "open": 335.7864,
+      "high": 344.3853,
+      "low": 335.1971,
+      "close": 343.2467,
+      "volume": 32006052
+    },
+    {
+      "date": "2026-02-03",
+      "open": 346.892,
+      "high": 348.5499,
+      "low": 337.0392,
+      "close": 339.2719,
+      "volume": 35930599
+    },
+    {
+      "date": "2026-02-04",
+      "open": 342.5177,
+      "high": 342.8672,
+      "low": 328.0963,
+      "close": 332.6105,
+      "volume": 70618398
+    },
+    {
+      "date": "2026-02-05",
+      "open": 311.8173,
+      "high": 332.2609,
+      "low": 306.0647,
+      "close": 330.8228,
+      "volume": 88205849
+    },
+    {
+      "date": "2026-02-06",
+      "open": 326.758,
+      "high": 329.9539,
+      "low": 319.5074,
+      "close": 322.4436,
+      "volume": 56380484
+    },
+    {
+      "date": "2026-02-09",
+      "open": 320.5161,
+      "high": 327.2773,
+      "low": 316.8508,
+      "close": 323.9017,
+      "volume": 39640055
+    },
+    {
+      "date": "2026-02-10",
+      "open": 320.556,
+      "high": 321.2551,
+      "low": 314.2042,
+      "close": 318.1691,
+      "volume": 39170012
+    },
+    {
+      "date": "2026-02-11",
+      "open": 318.5586,
+      "high": 320.6459,
+      "low": 309.2606,
+      "close": 310.5589,
+      "volume": 45406405
+    },
+    {
+      "date": "2026-02-12",
+      "open": 311.6875,
+      "high": 315.8321,
+      "low": 306.8038,
+      "close": 308.6015,
+      "volume": 47761288
+    },
+    {
+      "date": "2026-02-13",
+      "open": 307.3281,
+      "high": 308.2319,
+      "low": 303.3183,
+      "close": 305.3257,
+      "volume": 38499701
+    },
+    {
+      "date": "2026-02-17",
+      "open": 299.653,
+      "high": 304.0424,
+      "low": 295.8679,
+      "close": 301.6305,
+      "volume": 39247556
+    },
+    {
+      "date": "2026-02-18",
+      "open": 301.7004,
+      "high": 304.9861,
+      "low": 300.8615,
+      "close": 302.9388,
+      "volume": 28482075
+    },
+    {
+      "date": "2026-02-19",
+      "open": 301.4307,
+      "high": 305.076,
+      "low": 299.653,
+      "close": 302.4594,
+      "volume": 25834395
+    },
+    {
+      "date": "2026-02-20",
+      "open": 303.9275,
+      "high": 316.0918,
+      "low": 303.508,
+      "close": 314.5738,
+      "volume": 53210820
+    },
+    {
+      "date": "2026-02-23",
+      "open": 318.6335,
+      "high": 319.1029,
+      "low": 309.4653,
+      "close": 311.0883,
+      "volume": 31422974
+    },
+    {
+      "date": "2026-02-24",
+      "open": 310.1145,
+      "high": 311.8672,
+      "low": 305.5354,
+      "close": 310.499,
+      "volume": 25615646
+    },
+    {
+      "date": "2026-02-25",
+      "open": 311.6575,
+      "high": 313.2355,
+      "low": 309.0409,
+      "close": 312.4964,
+      "volume": 29963621
+    },
+    {
+      "date": "2026-02-26",
+      "open": 312.2368,
+      "high": 312.7361,
+      "low": 301.955,
+      "close": 306.9836,
+      "volume": 36431231
+    },
+    {
+      "date": "2026-02-27",
+      "open": 303.7427,
+      "high": 311.9671,
+      "low": 303.4082,
+      "close": 311.3579,
+      "volume": 44640640
+    },
+    {
+      "date": "2026-03-02",
+      "open": 302.8339,
+      "high": 308.0921,
+      "low": 300.9114,
+      "close": 306.1247,
+      "volume": 34790203
+    },
+    {
+      "date": "2026-03-03",
+      "open": 298.2049,
+      "high": 303.548,
+      "low": 296.3273,
+      "close": 303.1885,
+      "volume": 35496961
+    },
+    {
+      "date": "2026-03-04",
+      "open": 302.4993,
+      "high": 305.076,
+      "low": 300.3621,
+      "close": 302.739,
+      "volume": 29536190
+    },
+    {
+      "date": "2026-03-05",
+      "open": 302.6442,
+      "high": 302.9088,
+      "low": 297.6057,
+      "close": 300.4919,
+      "volume": 35752321
+    },
+    {
+      "date": "2026-03-06",
+      "open": 295.7081,
+      "high": 300.1424,
+      "low": 294.7993,
+      "close": 298.135,
+      "volume": 25576916
+    },
+    {
+      "date": "2026-03-09",
+      "open": 294.1819,
+      "high": 306.6143,
+      "low": 293.902,
+      "close": 306.1746,
+      "volume": 29312149
+    },
+    {
+      "date": "2026-03-10",
+      "open": 305.9847,
+      "high": 309.3227,
+      "low": 305.3855,
+      "close": 306.8542,
+      "volume": 23239684
+    },
+    {
+      "date": "2026-03-11",
+      "open": 306.5644,
+      "high": 311.2315,
+      "low": 305.7349,
+      "close": 308.5132,
+      "volume": 24125714
+    },
+    {
+      "date": "2026-03-12",
+      "open": 306.6343,
+      "high": 308.753,
+      "low": 300.8478,
+      "close": 303.3663,
+      "volume": 24928347
+    },
+    {
+      "date": "2026-03-13",
+      "open": 306.8242,
+      "high": 307.5038,
+      "low": 300.2582,
+      "close": 302.0971,
+      "volume": 23693092
+    },
+    {
+      "date": "2026-03-16",
+      "open": 304.1658,
+      "high": 306.3031,
+      "low": 302.8367,
+      "close": 305.3751,
+      "volume": 23519709
+    },
+    {
+      "date": "2026-03-17",
+      "open": 305.6749,
+      "high": 311.2315,
+      "low": 305.3151,
+      "close": 310.7318,
+      "volume": 21955171
+    },
+    {
+      "date": "2026-03-18",
+      "open": 309.0828,
+      "high": 312.2809,
+      "low": 306.7463,
+      "close": 307.5038,
+      "volume": 20009815
+    },
+    {
+      "date": "2026-03-19",
+      "open": 303.821,
+      "high": 307.8736,
+      "low": 302.167,
+      "close": 306.9441,
+      "volume": 25075831
+    },
+    {
+      "date": "2026-03-20",
+      "open": 305.2751,
+      "high": 305.8148,
+      "low": 298.0895,
+      "close": 300.8178,
+      "volume": 44364079
+    },
+    {
+      "date": "2026-03-23",
+      "open": 301.9272,
+      "high": 305.7948,
+      "low": 300.7479,
+      "close": 301.8772,
+      "volume": 29326946
+    },
+    {
+      "date": "2026-03-24",
+      "open": 299.0189,
+      "high": 299.7385,
+      "low": 290.1543,
+      "close": 290.2642,
+      "volume": 36864278
+    },
+    {
+      "date": "2026-03-25",
+      "open": 293.2624,
+      "high": 295.8209,
+      "low": 289.065,
+      "close": 290.7539,
+      "volume": 29460669
+    },
+    {
+      "date": "2026-03-26",
+      "open": 287.7358,
+      "high": 287.7757,
+      "low": 278.3315,
+      "close": 280.75,
+      "volume": 39080578
+    },
+    {
+      "date": "2026-03-27",
+      "open": 277.1072,
+      "high": 279.2009,
+      "low": 273.7842,
+      "close": 274.174,
+      "volume": 35890612
+    },
+    {
+      "date": "2026-03-30",
+      "open": 276.2527,
+      "high": 276.9223,
+      "low": 271.9453,
+      "close": 273.3345,
+      "volume": 35141244
+    },
+    {
+      "date": "2026-03-31",
+      "open": 277.8717,
+      "high": 287.9057,
+      "low": 276.9223,
+      "close": 287.386,
+      "volume": 43875400
+    },
+    {
+      "date": "2026-04-01",
+      "open": 290.659,
+      "high": 300.3381,
+      "low": 290.2343,
+      "close": 297.21,
+      "volume": 37684462
+    },
+    {
+      "date": "2026-04-02",
+      "open": 290.5141,
+      "high": 297.8996,
+      "low": 289.2748,
+      "close": 295.591,
+      "volume": 21666465
+    },
+    {
+      "date": "2026-04-06",
+      "open": 295.6909,
+      "high": 300.4381,
+      "low": 295.0014,
+      "close": 299.8085,
+      "volume": 16945494
+    },
+    {
+      "date": "2026-04-07",
+      "open": 302.5418,
+      "high": 305.445,
+      "low": 297.5398,
+      "close": 305.2751,
+      "volume": 23205361
+    },
+    {
+      "date": "2026-04-08",
+      "open": 320.2511,
+      "high": 321.8851,
+      "low": 314.8294,
+      "close": 317.128,
+      "volume": 33547140
+    },
+    {
+      "date": "2026-04-09",
+      "open": 315.7138,
+      "high": 319.3466,
+      "low": 310.8718,
+      "close": 318.2973,
+      "volume": 23739173
+    },
+    {
+      "date": "2026-04-10",
+      "open": 319.8213,
+      "high": 321.6352,
+      "low": 316.1286,
+      "close": 317.048,
+      "volume": 19152630
+    },
+    {
+      "date": "2026-04-13",
+      "open": 316.9431,
+      "high": 321.4354,
+      "low": 315.2791,
+      "close": 321.1156,
+      "volume": 18866424
+    },
+    {
+      "date": "2026-04-14",
+      "open": 324.5884,
+      "high": 333.0883,
+      "low": 323.5541,
+      "close": 332.7085,
+      "volume": 27721351
+    },
+    {
+      "date": "2026-04-15",
+      "open": 332.6885,
+      "high": 337.2758,
+      "low": 330.6997,
+      "close": 336.916,
+      "volume": 24918842
+    },
+    {
+      "date": "2026-04-16",
+      "open": 338.545,
+      "high": 339.6743,
+      "low": 334.3176,
+      "close": 335.8166,
+      "volume": 20541487
+    },
+    {
+      "date": "2026-04-17",
+      "open": 337.4457,
+      "high": 342.1128,
+      "low": 336.0365,
+      "close": 341.4732,
+      "volume": 25581881
+    },
+    {
+      "date": "2026-04-20",
+      "open": 340.5488,
+      "high": 341.1934,
+      "low": 336.4063,
+      "close": 337.2158,
+      "volume": 18784226
+    },
+    {
+      "date": "2026-04-21",
+      "open": 337.4806,
+      "high": 339.1346,
+      "low": 331.1495,
+      "close": 332.0889,
+      "volume": 23123795
+    },
+    {
+      "date": "2026-04-22",
+      "open": 336.816,
+      "high": 339.6143,
+      "low": 334.9672,
+      "close": 339.1147,
+      "volume": 20293014
+    },
+    {
+      "date": "2026-04-23",
+      "open": 340.9735,
+      "high": 341.7531,
+      "low": 335.9766,
+      "close": 338.6849,
+      "volume": 18650256
+    },
+    {
+      "date": "2026-04-24",
+      "open": 338.52,
+      "high": 345.0611,
+      "low": 335.187,
+      "close": 344.1916,
+      "volume": 26426061
+    },
+    {
+      "date": "2026-04-27",
+      "open": 345.7706,
+      "high": 352.9663,
+      "low": 342.5226,
+      "close": 350.128,
+      "volume": 28576887
+    },
+    {
+      "date": "2026-04-28",
+      "open": 348.3391,
+      "high": 352.2067,
+      "low": 345.9105,
+      "close": 349.5683,
+      "volume": 27824052
+    },
+    {
+      "date": "2026-04-29",
+      "open": 347.3547,
+      "high": 355.5747,
+      "low": 344.0017,
+      "close": 349.7282,
+      "volume": 35376328
+    },
+    {
+      "date": "2026-04-30",
+      "open": 373.8436,
+      "high": 385.6065,
+      "low": 365.5986,
+      "close": 384.5671,
+      "volume": 72039993
+    },
+    {
+      "date": "2026-05-01",
+      "open": 381.399,
+      "high": 386.5259,
+      "low": 378.8206,
+      "close": 385.4566,
+      "volume": 30105226
+    },
+    {
+      "date": "2026-05-04",
+      "open": 385.3966,
+      "high": 387.1456,
+      "low": 379.5602,
+      "close": 383.0181,
+      "volume": 26298574
+    },
+    {
+      "date": "2026-05-05",
+      "open": 385.9963,
+      "high": 392.5822,
+      "low": 383.7876,
+      "close": 388.1949,
+      "volume": 23878626
+    },
+    {
+      "date": "2026-05-06",
+      "open": 394.0064,
+      "high": 399.6079,
+      "low": 392.5223,
+      "close": 397.7991,
+      "volume": 31308476
+    },
+    {
+      "date": "2026-05-07",
+      "open": 399.678,
+      "high": 399.8579,
+      "low": 392.4424,
+      "close": 397.7491,
+      "volume": 24433490
+    },
+    {
+      "date": "2026-05-08",
+      "open": 396.7597,
+      "high": 401.7567,
+      "low": 396.1201,
+      "close": 400.5574,
+      "volume": 21461849
+    },
+    {
+      "date": "2026-05-11",
+      "open": 393.4068,
+      "high": 397.1995,
+      "low": 388.2349,
+      "close": 388.4048,
+      "volume": 30753738
+    },
+    {
+      "date": "2026-05-12",
+      "open": 387.1056,
+      "high": 388.2849,
+      "low": 382.5384,
+      "close": 387.1156,
+      "volume": 26017488
+    },
+    {
+      "date": "2026-05-13",
+      "open": 385.3616,
+      "high": 403.4557,
+      "low": 384.767,
+      "close": 402.3763,
+      "volume": 28144555
+    },
+    {
+      "date": "2026-05-14",
+      "open": 397.0396,
+      "high": 402.6862,
+      "low": 395.6004,
+      "close": 400.8273,
+      "volume": 21136716
+    },
+    {
+      "date": "2026-05-15",
+      "open": 396.0752,
+      "high": 399.2981,
+      "low": 392.9421,
+      "close": 396.5399,
+      "volume": 20309702
+    },
+    {
+      "date": "2026-05-18",
+      "open": 395.4455,
+      "high": 408.3627,
+      "low": 394.2912,
+      "close": 396.6998,
+      "volume": 26837196
+    },
+    {
+      "date": "2026-05-19",
+      "open": 396.7198,
+      "high": 396.9097,
+      "low": 385.8763,
+      "close": 387.4254,
+      "volume": 39545672
+    },
+    {
+      "date": "2026-05-20",
+      "open": 387.4654,
+      "high": 393.6215,
+      "low": 382.6683,
+      "close": 388.6746,
+      "volume": 30504055
+    },
+    {
+      "date": "2026-05-21",
+      "open": 385.4666,
+      "high": 392.2625,
+      "low": 382.7882,
+      "close": 387.4254,
+      "volume": 24852843
+    },
+    {
+      "date": "2026-05-22",
+      "open": 387.1106,
+      "high": 388.5047,
+      "low": 381.5406,
+      "close": 382.7382,
+      "volume": 20442123
+    },
+    {
+      "date": "2026-05-26",
+      "open": 384.2773,
+      "high": 389.0243,
+      "low": 382.3685,
+      "close": 388.6447,
+      "volume": 27747388
+    },
+    {
+      "date": "2026-05-27",
+      "open": 386.431,
+      "high": 393.6416,
+      "low": 385.6665,
+      "close": 388.5947,
+      "volume": 23087287
+    },
+    {
+      "date": "2026-05-28",
+      "open": 387.7652,
+      "high": 391.6328,
+      "low": 384.9269,
+      "close": 389.8939,
+      "volume": 24357455
+    },
+    {
+      "date": "2026-05-29",
+      "open": 385.0069,
+      "high": 385.0069,
+      "low": 378.231,
+      "close": 380.1098,
+      "volume": 44415846
+    },
+    {
+      "date": "2026-06-01",
+      "open": 376.2921,
+      "high": 378.3309,
+      "low": 373.294,
+      "close": 376.1422,
+      "volume": 28672120
+    },
+    {
+      "date": "2026-06-02",
+      "open": 366.3681,
+      "high": 373.3139,
+      "low": 358.2231,
+      "close": 361.631,
+      "volume": 50412300
+    },
+    {
+      "date": "2026-06-03",
+      "open": 361.8109,
+      "high": 366.2282,
+      "low": 357.8633,
+      "close": 358.7727,
+      "volume": 55441583
+    },
+    {
+      "date": "2026-06-04",
+      "open": 358.6828,
+      "high": 373.024,
+      "low": 357.9932,
+      "close": 371.9648,
+      "volume": 44055520
+    },
+    {
+      "date": "2026-06-05",
+      "open": 366.1183,
+      "high": 371.8548,
+      "low": 363.9003,
+      "close": 368.307,
+      "volume": 37471206
+    },
+    {
+      "date": "2026-06-08",
+      "open": 365.18,
+      "high": 366.2,
+      "low": 360.5309,
+      "close": 363.31,
+      "volume": 27942464
+    },
+    {
+      "date": "2026-06-09",
+      "open": 367.09,
+      "high": 372.08,
+      "low": 357.3,
+      "close": 364.26,
+      "volume": 29535072
+    },
+    {
+      "date": "2026-06-10",
+      "open": 363.19,
+      "high": 368.555,
+      "low": 355.2,
+      "close": 356.38,
+      "volume": 32357132
+    },
+    {
+      "date": "2026-06-11",
+      "open": 355.925,
+      "high": 358.8,
+      "low": 346.36,
+      "close": 357.77,
+      "volume": 35538165
+    },
+    {
+      "date": "2026-06-12",
+      "open": 362.62,
+      "high": 366.57,
+      "low": 354.94,
+      "close": 359.68,
+      "volume": 24731019
+    },
+    {
+      "date": "2026-06-15",
+      "open": 367.93,
+      "high": 372.99,
+      "low": 366.55,
+      "close": 369.35,
+      "volume": 27727493
+    },
+    {
+      "date": "2026-06-16",
+      "open": 369.6,
+      "high": 376.0,
+      "low": 367.06,
+      "close": 373.25,
+      "volume": 24876095
+    },
+    {
+      "date": "2026-06-17",
+      "open": 369.125,
+      "high": 372.33,
+      "low": 362.02,
+      "close": 363.79,
+      "volume": 24543644
+    },
+    {
+      "date": "2026-06-18",
+      "open": 365.75,
+      "high": 369.48,
+      "low": 358.67,
+      "close": 368.03,
+      "volume": 44470070
+    },
+    {
+      "date": "2026-06-22",
+      "open": 357.945,
+      "high": 358.92,
+      "low": 341.7219,
+      "close": 349.68,
+      "volume": 52814764
+    },
+    {
+      "date": "2026-06-23",
+      "open": 340.69,
+      "high": 349.29,
+      "low": 340.2,
+      "close": 346.13,
+      "volume": 34007652
+    },
+    {
+      "date": "2026-06-24",
+      "open": 349.035,
+      "high": 353.476,
+      "low": 341.93,
+      "close": 345.29,
+      "volume": 44997277
+    },
+    {
+      "date": "2026-06-25",
+      "open": 336.73,
+      "high": 345.57,
+      "low": 335.84,
+      "close": 343.71,
+      "volume": 44564576
+    },
+    {
+      "date": "2026-06-26",
+      "open": 342.55,
+      "high": 346.36,
+      "low": 330.2,
+      "close": 337.39,
+      "volume": 114706326
+    },
+    {
+      "date": "2026-06-29",
+      "open": 341.825,
+      "high": 354.35,
+      "low": 340.67,
+      "close": 353.65,
+      "volume": 34213932
+    },
+    {
+      "date": "2026-06-30",
+      "open": 353.865,
+      "high": 358.62,
+      "low": 350.4,
+      "close": 357.37,
+      "volume": 35237231
+    },
+    {
+      "date": "2026-07-01",
+      "open": 358.37,
+      "high": 362.97,
+      "low": 356.43,
+      "close": 361.21,
+      "volume": 26736445
+    },
+    {
+      "date": "2026-07-02",
+      "open": 359.48,
+      "high": 364.205,
+      "low": 353.42,
+      "close": 359.91,
+      "volume": 25999346
+    }
+  ],
+  "filings": [
+    {
+      "form": "8-K",
+      "date": "2026-06-11",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526267578/d57679d8k.htm"
+    },
+    {
+      "form": "8-K",
+      "date": "2026-06-05",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526259830/d36818d8k.htm"
+    },
+    {
+      "form": "8-K",
+      "date": "2026-06-05",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000059/goog-20260602.htm"
+    },
+    {
+      "form": "8-K",
+      "date": "2026-06-04",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526257724/d83560d8k.htm"
+    },
+    {
+      "form": "8-K",
+      "date": "2026-05-21",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526234488/d144566d8k.htm"
+    },
+    {
+      "form": "8-K",
+      "date": "2026-05-11",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526216986/d109021d8k.htm"
+    },
+    {
+      "form": "10-Q",
+      "date": "2026-04-30",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000048/goog-20260331.htm"
+    },
+    {
+      "form": "8-K",
+      "date": "2026-04-29",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000043/goog-20260429.htm"
+    },
+    {
+      "form": "8-K",
+      "date": "2026-04-10",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000034/goog-20260407.htm"
+    },
+    {
+      "form": "8-K",
+      "date": "2026-04-02",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000031/goog-20260330.htm"
+    },
+    {
+      "form": "8-K",
+      "date": "2026-03-06",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000026/goog-20260304.htm"
+    },
+    {
+      "form": "8-K",
+      "date": "2026-02-13",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526051423/d946885d8k.htm"
+    }
+  ],
+  "insider": [
+    {
+      "date": "2026-07-01",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "G",
+      "action": "GIFT",
+      "shares": 1624.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526292904/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-07-01",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "G",
+      "action": "GIFT",
+      "shares": 1624.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526292904/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-30",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "G",
+      "action": "GIFT",
+      "shares": 8998.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526292904/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-30",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "G",
+      "action": "GIFT",
+      "shares": 8998.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526292904/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-30",
+      "name": "ARNOLD FRANCES",
+      "role": "Director",
+      "code": "S",
+      "action": "SELL",
+      "shares": 112.0,
+      "price": 351.28,
+      "value": 39343.36,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526290710/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-29",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "S",
+      "action": "SELL",
+      "shares": 760.0,
+      "price": 345.18,
+      "value": 262336.8,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526292904/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-29",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "S",
+      "action": "SELL",
+      "shares": 920.0,
+      "price": 346.13,
+      "value": 318439.6,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526292904/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-29",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "S",
+      "action": "SELL",
+      "shares": 520.0,
+      "price": 347.25,
+      "value": 180570.0,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526292904/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-29",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "S",
+      "action": "SELL",
+      "shares": 680.0,
+      "price": 348.28,
+      "value": 236830.4,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526292904/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-29",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "S",
+      "action": "SELL",
+      "shares": 1280.0,
+      "price": 349.42,
+      "value": 447257.6,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526292904/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-29",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "S",
+      "action": "SELL",
+      "shares": 2400.0,
+      "price": 350.49,
+      "value": 841176.0,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526292904/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-29",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "S",
+      "action": "SELL",
+      "shares": 2358.0,
+      "price": 351.21,
+      "value": 828153.18,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526292904/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-29",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "S",
+      "action": "SELL",
+      "shares": 80.0,
+      "price": 351.9,
+      "value": 28152.0,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526292904/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-26",
+      "name": "Saraci Marsida",
+      "role": "VP, Chief Accounting Officer",
+      "code": "S",
+      "action": "SELL",
+      "shares": 449.0,
+      "price": 341.72,
+      "value": 153432.28,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289028/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Saraci Marsida",
+      "role": "VP, Chief Accounting Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 121.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289028/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Saraci Marsida",
+      "role": "VP, Chief Accounting Officer",
+      "code": "F",
+      "action": "TAX",
+      "shares": 122.0,
+      "price": 345.04,
+      "value": 42094.88,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289028/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Saraci Marsida",
+      "role": "VP, Chief Accounting Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 101.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289028/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Saraci Marsida",
+      "role": "VP, Chief Accounting Officer",
+      "code": "F",
+      "action": "TAX",
+      "shares": 101.0,
+      "price": 345.04,
+      "value": 34849.04,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289028/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Saraci Marsida",
+      "role": "VP, Chief Accounting Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 69.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289028/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Saraci Marsida",
+      "role": "VP, Chief Accounting Officer",
+      "code": "F",
+      "action": "TAX",
+      "shares": 69.0,
+      "price": 345.04,
+      "value": 23807.76,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289028/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Saraci Marsida",
+      "role": "VP, Chief Accounting Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 106.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289028/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Saraci Marsida",
+      "role": "VP, Chief Accounting Officer",
+      "code": "F",
+      "action": "TAX",
+      "shares": 107.0,
+      "price": 345.04,
+      "value": 36919.28,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289028/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Saraci Marsida",
+      "role": "VP, Chief Accounting Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 27.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289028/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Saraci Marsida",
+      "role": "VP, Chief Accounting Officer",
+      "code": "F",
+      "action": "TAX",
+      "shares": 27.0,
+      "price": 345.04,
+      "value": 9316.08,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289028/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Saraci Marsida",
+      "role": "VP, Chief Accounting Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 26.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289028/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Saraci Marsida",
+      "role": "VP, Chief Accounting Officer",
+      "code": "F",
+      "action": "TAX",
+      "shares": 27.0,
+      "price": 345.04,
+      "value": 9316.08,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289028/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Saraci Marsida",
+      "role": "VP, Chief Accounting Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 449.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289028/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Ashkenazi Anat",
+      "role": "SVP, Chief Financial Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 4128.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289019/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Ashkenazi Anat",
+      "role": "SVP, Chief Financial Officer",
+      "code": "F",
+      "action": "TAX",
+      "shares": 4166.0,
+      "price": 345.04,
+      "value": 1437436.64,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289019/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Ashkenazi Anat",
+      "role": "SVP, Chief Financial Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 4256.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289019/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Ashkenazi Anat",
+      "role": "SVP, Chief Financial Officer",
+      "code": "F",
+      "action": "TAX",
+      "shares": 4295.0,
+      "price": 345.04,
+      "value": 1481946.8,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289019/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Ashkenazi Anat",
+      "role": "SVP, Chief Financial Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 1764.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289019/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Ashkenazi Anat",
+      "role": "SVP, Chief Financial Officer",
+      "code": "F",
+      "action": "TAX",
+      "shares": 1780.0,
+      "price": 345.04,
+      "value": 614171.2,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289019/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Ashkenazi Anat",
+      "role": "SVP, Chief Financial Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 10148.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289019/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 4744.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289015/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "F",
+      "action": "TAX",
+      "shares": 4788.0,
+      "price": 345.04,
+      "value": 1652051.52,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289015/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 4256.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289015/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "F",
+      "action": "TAX",
+      "shares": 4295.0,
+      "price": 345.04,
+      "value": 1481946.8,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289015/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 1625.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289015/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "F",
+      "action": "TAX",
+      "shares": 1640.0,
+      "price": 345.04,
+      "value": 565865.6,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289015/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "WALKER JOHN KENT",
+      "role": "President, Global Affairs, CLO",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 10625.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289015/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Porat Ruth",
+      "role": "President and CIO",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 4744.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289012/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Porat Ruth",
+      "role": "President and CIO",
+      "code": "F",
+      "action": "TAX",
+      "shares": 4788.0,
+      "price": 345.04,
+      "value": 1652051.52,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289012/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Porat Ruth",
+      "role": "President and CIO",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 4256.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289012/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Porat Ruth",
+      "role": "President and CIO",
+      "code": "F",
+      "action": "TAX",
+      "shares": 4295.0,
+      "price": 345.04,
+      "value": 1481946.8,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289012/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Porat Ruth",
+      "role": "President and CIO",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 1625.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289012/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Porat Ruth",
+      "role": "President and CIO",
+      "code": "F",
+      "action": "TAX",
+      "shares": 1640.0,
+      "price": 345.04,
+      "value": 565865.6,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289012/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Porat Ruth",
+      "role": "President and CIO",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 10625.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289012/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Schindler Philipp",
+      "role": "SVP, Chief Business Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 6061.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289009/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Schindler Philipp",
+      "role": "SVP, Chief Business Officer",
+      "code": "F",
+      "action": "TAX",
+      "shares": 6117.0,
+      "price": 345.04,
+      "value": 2110609.68,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289009/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Schindler Philipp",
+      "role": "SVP, Chief Business Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 5376.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289009/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Schindler Philipp",
+      "role": "SVP, Chief Business Officer",
+      "code": "F",
+      "action": "TAX",
+      "shares": 5425.0,
+      "price": 345.04,
+      "value": 1871842.0,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289009/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Schindler Philipp",
+      "role": "SVP, Chief Business Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 1996.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289009/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Schindler Philipp",
+      "role": "SVP, Chief Business Officer",
+      "code": "F",
+      "action": "TAX",
+      "shares": 2015.0,
+      "price": 345.04,
+      "value": 695255.6,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289009/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Schindler Philipp",
+      "role": "SVP, Chief Business Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 13433.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289009/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Pichai Sundar",
+      "role": "Chief Executive Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 3668.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289007/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Pichai Sundar",
+      "role": "Chief Executive Officer",
+      "code": "F",
+      "action": "TAX",
+      "shares": 3702.0,
+      "price": 345.04,
+      "value": 1277338.08,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289007/xslF345X06/ownership.xml"
+    },
+    {
+      "date": "2026-06-25",
+      "name": "Pichai Sundar",
+      "role": "Chief Executive Officer",
+      "code": "C",
+      "action": "CONVERSION",
+      "shares": 3668.0,
+      "price": 0.0,
+      "value": null,
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000119312526289007/xslF345X06/ownership.xml"
     }
   ]
 }
