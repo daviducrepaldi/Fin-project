@@ -23,10 +23,12 @@ def classify_sector(company: dict) -> str:
         except (ValueError, TypeError):
             s = None
         if s is not None:
+            if s == 6324:                      # hospital & medical service plans (UNH)
+                return 'healthcare'
+            if s == 6798 or 6500 <= s <= 6599:  # REITs + real estate
+                return 'real_estate'
             if 6000 <= s <= 6499 or 6700 <= s <= 6799:
                 return 'financials'
-            if 6500 <= s <= 6599:
-                return 'real_estate'
             if 4900 <= s <= 4999:
                 return 'utilities'
             if 1300 <= s <= 1399 or 2900 <= s <= 2999:

@@ -149,11 +149,12 @@ def _compute_beta(prices: list) -> float:
 
 def _get_tiingo_data(ticker: str) -> dict:
     """
-    Fetch meta + one year of daily prices from Tiingo.
-    Returns dict with: name, exchange, price, week52_high, week52_low,
-    annual_dividend (sum of divCash over trailing year), beta (vs. SPY).
+    Fetch one year of daily prices from Tiingo (single request — the free
+    tier is rate-limited per hour, and the meta endpoint only duplicated
+    the company name EDGAR already provides).
+    Returns dict with: price, week52_high, week52_low, annual_dividend
+    (sum of divCash over trailing year), beta (vs. SPY), prices.
     """
-    meta   = _tiingo_get(f"/tiingo/daily/{ticker}")
     prices = _get_tiingo_prices(ticker)
 
     if not prices:
@@ -178,8 +179,6 @@ def _get_tiingo_data(ticker: str) -> dict:
     ]
 
     return {
-        "name":           meta.get("name", ticker),
-        "exchange":       meta.get("exchangeCode", ""),
         "price":          prices[-1].get("adjClose"),
         "week52_high":    max(closes) if closes else None,
         "week52_low":     min(closes) if closes else None,
@@ -664,6 +663,7 @@ def _build_balance(ugaap: dict, ifrs: dict) -> list:
         "LongTermDebtAndCapitalLeaseObligations",
         "LongTermDebtNoncurrent",
         "LongtermBorrowings",
+        "NotesPayable",   # REITs (e.g. Realty Income) tag debt this way
     )
     cur_a = _ins("AssetsCurrent",     "CurrentAssets")
     cur_l = _ins("LiabilitiesCurrent","CurrentLiabilities")
@@ -688,6 +688,28 @@ def _build_balance(ugaap: dict, ifrs: dict) -> list:
             "current_liabilities": cur_l.get(period),
             "inventory":           inv.get(period),
         })
+
+    # Some filers (e.g. CAT) report total debt only in the annual 10-K —
+    # the 10-Q figure is dimensional and dropped from companyfacts. Debt
+    # moves slowly; carry the nearest older value forward (≤ ~13 months)
+    # rather than leaving interim quarters empty.
+    for i, row in enumerate(result):
+        if row["total_debt"] is not None:
+            continue
+        try:
+            cur = datetime.strptime(row["period"], "%Y-%m-%d")
+        except ValueError:
+            continue
+        for older in result[i + 1:]:
+            if older["total_debt"] is None:
+                continue
+            try:
+                gap = (cur - datetime.strptime(older["period"], "%Y-%m-%d")).days
+            except ValueError:
+                break
+            if 0 < gap <= 400:
+                row["total_debt"] = older["total_debt"]
+            break
     return result
 
 
@@ -715,6 +737,8 @@ def _build_cashflow(ugaap: dict, ifrs: dict) -> list:
         "PaymentsForCapitalImprovements",
         "PaymentsToAcquireProductiveAssets",
         "PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities",
+        # IFRS filers (e.g. SAP) often report capex + intangibles combined
+        "PurchaseOfPropertyPlantAndEquipmentIntangibleAssetsOtherThanGoodwillInvestmentPropertyAndOtherNoncurrentAssets",
     )
 
     all_periods = sorted(set(op_cf), reverse=True)[:MAX_QUARTERS]
@@ -843,12 +867,22 @@ def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 def _fetch_raw(ticker: str) -> dict:
+    # ── EDGAR: verify ticker first (free, no rate limit) ─────────────
+    cik = _get_cik(ticker)
+
     # ── Tiingo: price + 52w range ─────────────────────────────────────
-    tiingo = _get_tiingo_data(ticker)
-    price  = tiingo["price"]
+    # Degrade gracefully: EDGAR fundamentals are still worth showing when
+    # the price API is rate-limited (free tier, hourly quota).
+    price_error = None
+    try:
+        tiingo = _get_tiingo_data(ticker)
+    except Exception as e:
+        price_error = f"{type(e).__name__}: {e}"
+        tiingo = {"price": None, "week52_high": None, "week52_low": None,
+                  "annual_dividend": None, "beta": None, "prices": []}
+    price = tiingo["price"]
 
     # ── EDGAR: company meta + XBRL statements ────────────────────────
-    cik          = _get_cik(ticker)
     edgar_meta   = _get_edgar_meta(cik)
     facts        = _get_edgar_facts(cik)
     fact_ns      = facts.get("facts", {})
@@ -863,20 +897,26 @@ def _fetch_raw(ticker: str) -> dict:
 
     from src.utils import classify_sector
 
+    # EDGAR names are ALL CAPS ("VISA INC.") — title-case for display
+    edgar_name = (edgar_meta.get("name") or ticker).title()
     company = {
         "ticker":       ticker,
-        "name":         tiingo["name"] or edgar_meta.get("name", ticker),
+        "name":         edgar_name,
         "industry":     edgar_meta.get("industry", ""),
         "sic":          edgar_meta.get("sic", ""),
         "currency":     "USD",
-        "exchange":     tiingo["exchange"],
+        "exchange":     "",
         "last_updated": str(date.today()),
     }
     bucket = classify_sector(company)
     company["sector"] = bucket.replace("_", " ").title() if bucket != "general" else ""
 
     recent = edgar_meta.get("recent", {})
-    filings = _recent_filings(cik, recent, {"10-K", "10-Q", "8-K", "10-K/A", "10-Q/A"}, 12)
+    filings = _recent_filings(
+        cik, recent,
+        {"10-K", "10-Q", "8-K", "10-K/A", "10-Q/A", "20-F", "20-F/A", "6-K"},  # 20-F/6-K: foreign filers
+        12,
+    )
     try:
         insider = _fetch_insider_transactions(cik, recent)
     except Exception:
@@ -891,6 +931,7 @@ def _fetch_raw(ticker: str) -> dict:
         "prices":   tiingo.get("prices", []),
         "filings":  filings,
         "insider":  insider,
+        "price_data_error": price_error,
     }
 
 

@@ -444,6 +444,9 @@ class TestSectorClassification:
         assert classify_sector({'sic': '3674'}) == 'technology'
         assert classify_sector({'sic': '2911'}) == 'energy'
         assert classify_sector({'sic': '4911'}) == 'utilities'
+        assert classify_sector({'sic': '6324'}) == 'healthcare'   # UNH-style medical plans
+        assert classify_sector({'sic': '6798'}) == 'real_estate'  # REITs
+        assert classify_sector({'sic': '6022'}) == 'financials'   # still banks
 
     def test_text_fallback_for_legacy_data(self):
         from src.utils import classify_sector

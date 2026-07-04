@@ -371,6 +371,26 @@ def _save_file(ticker: str, data: dict):
         json.dump(clean_for_json(data), f, indent=2)
 
 
+def _price_warning(ticker: str, data: dict):
+    """Info message when EDGAR fundamentals loaded but price data didn't."""
+    err = (data or {}).get("price_data_error")
+    if not err:
+        return None
+    if "429" in err:
+        return (
+            f"**{ticker}**: price data is rate-limited right now (free Tiingo tier, "
+            "hourly quota) — showing SEC fundamentals only. Valuation, price chart "
+            "and momentum will appear once the limit resets."
+        )
+    return f"**{ticker}**: price data unavailable — showing SEC fundamentals only."
+
+
+def _fail_hint(exc) -> str:
+    if "429" in str(exc):
+        return " Price-data rate limit reached (free tier) — it resets within the hour."
+    return ""
+
+
 def _get_ticker(ticker: str, force_refresh: bool = False):
     """
     Returns ((data, result), warning_msg).
@@ -392,12 +412,12 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
                 data = fetcher.fetch_and_store(ticker) if ticker in AVAILABLE_TICKERS else fetcher.fetch_only(ticker)
             result = analyzer.compute_ratios(data)
             cache[ticker] = (data, result)
-            if ticker in AVAILABLE_TICKERS:
+            if ticker in AVAILABLE_TICKERS and not data.get("price_data_error"):
                 try:
                     _save_file(ticker, data)
                 except Exception:
                     pass   # Cloud filesystem is read-only — that's fine
-            return (data, result), None
+            return (data, result), _price_warning(ticker, data)
         except Exception as e:
             print(f"FETCH ERROR [force_refresh] {ticker}: {type(e).__name__}: {e}")
             data = _load_file(ticker)
@@ -412,7 +432,7 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
             if ticker in AVAILABLE_TICKERS:
                 return None, f"Live fetch failed for **{ticker}** and no cached data found. Run `python prefetch_data.py --tickers {ticker}` to rebuild it."
             print(f"FETCH ERROR [force_refresh fallback] {ticker}: {type(e).__name__}: {e}")
-            return None, f"Live fetch failed for **{ticker}**. Wait a moment and try again."
+            return None, f"Live fetch failed for **{ticker}**.{_fail_hint(e)} Wait a moment and try again."
 
     # Default: load from static file
     data = _load_file(ticker)
@@ -436,12 +456,12 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
 
         result = analyzer.compute_ratios(data)
         cache[ticker] = (data, result)
-        return (data, result), None
+        return (data, result), _price_warning(ticker, data)
     except Exception as e:
         print(f"FETCH ERROR [analyze] {ticker}: {type(e).__name__}: {e}")
         available = '  ·  '.join(AVAILABLE_TICKERS)
         return None, (
-            f"Could not fetch **{ticker}**. Wait a moment and try again.\n\n"
+            f"Could not fetch **{ticker}**.{_fail_hint(e)} Wait a moment and try again.\n\n"
             f"Pre-loaded (instant): {available}"
         )
 
@@ -602,7 +622,7 @@ def _render_market_intel(ticker: str, data: dict, result: dict):
     # ── filings & events ──────────────────────────────────────────
     _section_header("FILINGS & EVENTS")
     if filings:
-        last_report = next((f for f in filings if f["form"] in ("10-Q", "10-K")), None)
+        last_report = next((f for f in filings if f["form"] in ("10-Q", "10-K", "20-F")), None)
         if last_report:
             try:
                 nxt = datetime.strptime(last_report["date"], "%Y-%m-%d") + timedelta(days=91)
