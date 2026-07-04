@@ -246,13 +246,50 @@ def _quarterly_instant(concept: dict) -> dict:
     return {k: v[0] for k, v in result.items()}
 
 
+def _fill_missing_q4(quarterly: dict, concept: dict) -> dict:
+    """
+    Derive standalone Q4 values that are missing from XBRL.
+    10-K filings report the full fiscal year as one duration — there is no
+    standalone Q4 datapoint — so quarterly series would otherwise have a hole
+    every year, corrupting TTM sums and YoY comparisons.
+    Q4 = FY value − sum of the three quarters inside that fiscal-year window.
+    """
+    annual: dict = {}   # end → (val, start, filed)
+    for unit_vals in concept.get("units", {}).values():
+        for dp in unit_vals:
+            if dp.get("form") not in _ANNUAL_FORMS:
+                continue
+            start, end, val, filed = dp.get("start", ""), dp.get("end", ""), dp.get("val"), dp.get("filed", "")
+            if not start or not end or val is None:
+                continue
+            try:
+                days = (datetime.strptime(end, "%Y-%m-%d") -
+                        datetime.strptime(start, "%Y-%m-%d")).days
+            except ValueError:
+                continue
+            if not (340 <= days <= 390):
+                continue
+            if end not in annual or filed > annual[end][2]:
+                annual[end] = (float(val), start, filed)
+
+    out = dict(quarterly)
+    for end, (fy_val, start, _) in annual.items():
+        if end in out:
+            continue
+        # ISO date strings compare correctly as strings
+        in_window = [v for k, v in quarterly.items() if start <= k < end]
+        if len(in_window) == 3:
+            out[end] = fy_val - sum(in_window)
+    return out
+
+
 def _first_dur(tax: dict, *names) -> dict:
     """Try quarterly duration first; fall back to annual (for 20-F filers)."""
     for name in names:
         if name in tax:
             vals = _quarterly_duration(tax[name])
             if vals:
-                return vals
+                return _fill_missing_q4(vals, tax[name])
     for name in names:
         if name in tax:
             vals = _annual_duration(tax[name])
@@ -271,9 +308,28 @@ def _first_ins(tax: dict, *names) -> dict:
 
 
 def _ttm(by_period: dict, n: int = 4):
-    """Sum the n most recent non-None values from a {period: value} dict."""
-    vals = [v for _, v in sorted(by_period.items(), reverse=True) if v is not None][:n]
-    return sum(vals) if len(vals) == n else None
+    """
+    Sum the n most recent non-None values from a {period: value} dict,
+    provided they span ≤ ~13 months (i.e. they really are a trailing year).
+    If consecutive periods are all ~1 year apart (annual-only 20-F filers),
+    the latest fiscal-year value is itself the TTM.
+    """
+    pairs = [(p, v) for p, v in sorted(by_period.items(), reverse=True) if v is not None]
+    if not pairs:
+        return None
+    try:
+        dates = [datetime.strptime(p, "%Y-%m-%d") for p, _ in pairs]
+    except ValueError:
+        return None
+    if len(pairs) >= 2:
+        gaps = [(dates[i] - dates[i + 1]).days for i in range(len(dates) - 1)]
+        if all(300 <= g <= 430 for g in gaps):
+            return pairs[0][1]
+    if len(pairs) < n:
+        return None
+    if (dates[0] - dates[n - 1]).days > 400:
+        return None
+    return sum(v for _, v in pairs[:n])
 
 
 def _build_income(ugaap: dict, ifrs: dict) -> list:
@@ -470,7 +526,8 @@ def _compute_market(price, tiingo: dict, income: list, balance: list,
     ev_revenue   = round(ev / ttm_rev, 4)        if (ev and ttm_rev and ttm_rev > 0) else None
 
     annual_div   = tiingo.get("annual_dividend")
-    div_yield    = (annual_div / price) if (annual_div and price and price > 0) else None
+    # Stored in % (e.g. 0.42 for 0.42%) — display and legacy data expect percent, not a fraction
+    div_yield    = round(annual_div / price * 100, 2) if (annual_div and price and price > 0) else None
 
     return {
         "market_cap":         market_cap,

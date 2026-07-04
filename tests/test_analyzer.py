@@ -321,3 +321,111 @@ class TestComputeRating:
         # Our synthetic data has market + ttm values, so quality should be full
         rating_out = compute_rating(self.result)
         assert rating_out['data_quality'] == 'full'
+
+
+# ── regression tests: gaps in quarterly data ─────────────────────────────────
+
+def _quarter(period, rev):
+    """One aligned income/balance/cashflow row set for a given period."""
+    income = {
+        'period': period, 'revenue': rev, 'gross_profit': rev * 0.40,
+        'operating_income': rev * 0.20, 'net_income': rev * 0.10,
+        'ebitda': rev * 0.25, 'interest_expense': -20_000_000,
+    }
+    balance = {
+        'period': period, 'total_assets': 8e9, 'total_liabilities': 3e9,
+        'equity': 5e9, 'cash': 2e8, 'total_debt': 1e9,
+        'current_assets': 2e9, 'current_liabilities': 1e9, 'inventory': 2e8,
+    }
+    cashflow = {
+        'period': period, 'operating_cf': rev * 0.15, 'investing_cf': -rev * 0.03,
+        'financing_cf': -rev * 0.02, 'capex': -rev * 0.03, 'free_cash_flow': rev * 0.12,
+    }
+    return income, balance, cashflow
+
+
+def _data_from_periods(period_revs):
+    income, balance, cashflow = [], [], []
+    for period, rev in period_revs:
+        i, b, c = _quarter(period, rev)
+        income.append(i); balance.append(b); cashflow.append(c)
+    return {'income': income, 'balance': balance, 'cashflow': cashflow,
+            'market': {}, 'company': {}}
+
+
+class TestTrendsWithGaps:
+    def test_yoy_peer_found_by_date_despite_missing_quarter(self):
+        # Q2'24 is missing, so the year-ago peer of 2024-12-31 is only 3 rows
+        # back — an index-offset (i+4) lookup would miss it or pick Q3'23.
+        data = _data_from_periods([
+            ('2024-12-31', 1_200_000_000),
+            ('2024-09-30', 1_100_000_000),
+            ('2024-03-31', 1_000_000_000),
+            ('2023-12-31', 1_000_000_000),
+            ('2023-09-30',   900_000_000),
+        ])
+        result = compute_ratios(data)
+        trend = result['trends'][0]
+        assert trend is not None
+        # 1.2B vs 1.0B a year earlier → +20.0%
+        assert trend['rev_yoy_pct'] == 20.0
+
+    def test_no_false_peer_when_prior_year_missing(self):
+        data = _data_from_periods([
+            ('2024-12-31', 1_200_000_000),
+            ('2024-09-30', 1_100_000_000),
+        ])
+        result = compute_ratios(data)
+        assert result['trends'][0] is None
+
+    def test_zero_bps_change_gets_flat_arrow(self):
+        # Identical margins YoY → 0 bps; must render '→', not '' (old truthiness bug)
+        data = _data_from_periods([
+            ('2024-12-31', 1_000_000_000),
+            ('2023-12-31', 1_000_000_000),
+        ])
+        result = compute_ratios(data)
+        trend = result['trends'][0]
+        assert trend['gm_bps'] == 0
+        assert trend['gm_arrow'] == '→'
+
+
+class TestTTMContiguity:
+    def test_ttm_none_when_quarters_not_contiguous(self):
+        # 4 quarters spanning >2 years must not be summed as a "TTM"
+        data = _data_from_periods([
+            ('2024-12-31', 1_000_000_000),
+            ('2024-09-30', 1_000_000_000),
+            ('2023-03-31', 1_000_000_000),
+            ('2022-12-31', 1_000_000_000),
+        ])
+        result = compute_ratios(data)
+        assert result['ttm']['revenue'] is None
+
+    def test_ttm_uses_latest_value_for_annual_only_filers(self):
+        # Consecutive periods ~1 year apart → rows are fiscal years; the most
+        # recent FY value already is a trailing twelve months.
+        data = _data_from_periods([
+            ('2024-12-31', 4_000_000_000),
+            ('2023-12-31', 3_600_000_000),
+            ('2022-12-31', 3_200_000_000),
+        ])
+        result = compute_ratios(data)
+        assert result['ttm']['revenue'] == 4_000_000_000
+
+
+class TestRatingGrowthSmoothing:
+    def test_growth_uses_average_of_recent_quarters(self):
+        # Two YoY datapoints: +30% and +10% → average 20% → 20 pts, not the
+        # 25 pts a single +30% quarter would earn.
+        data = _data_from_periods([
+            ('2024-12-31', 1_300_000_000),
+            ('2024-09-30', 1_100_000_000),
+            ('2024-06-30', 1_000_000_000),
+            ('2024-03-31', 1_000_000_000),
+            ('2023-12-31', 1_000_000_000),
+            ('2023-09-30', 1_000_000_000),
+        ])
+        result = compute_ratios(data)
+        rating = compute_rating(result)
+        assert rating['breakdown']['growth']['score'] == 20.0

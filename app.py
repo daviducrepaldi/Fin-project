@@ -402,7 +402,11 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
             if data:
                 result = analyzer.compute_ratios(data)
                 cache[ticker] = (data, result)
-                return (data, result), None   # silent fallback to pre-fetched JSON
+                last = data.get('company', {}).get('last_updated', 'unknown date')
+                return (data, result), (
+                    f"Live refresh failed for **{ticker}** — showing previously "
+                    f"saved data (as of {last})."
+                )
             if ticker in AVAILABLE_TICKERS:
                 return None, f"Live fetch failed for **{ticker}** and no cached data found. Run `python prefetch_data.py --tickers {ticker}` to rebuild it."
             print(f"FETCH ERROR [force_refresh fallback] {ticker}: {type(e).__name__}: {e}")
@@ -472,10 +476,14 @@ with st.sidebar:
     )
 
 MAX_TICKERS = 5
-tickers = [t.strip().upper() for t in tickers_input.split() if t.strip()]
-# Reject anything that isn't a plain ticker (letters only, 1-10 chars).
-# Prevents path traversal like "../app" reaching the data/ file loader.
-tickers = [t for t in tickers if re.match(r'^[A-Z]{1,10}$', t)]
+# Letters with an optional class suffix (BRK.B / BRK-B). No slashes and no way
+# to form "..", so nothing can escape data/ in the file loader.
+TICKER_RE = re.compile(r'^[A-Z]{1,10}([.-][A-Z]{1,4})?$')
+raw_tokens = [t.strip().upper() for t in tickers_input.split() if t.strip()]
+tickers = [t for t in raw_tokens if TICKER_RE.match(t)]
+dropped = [t for t in raw_tokens if not TICKER_RE.match(t)]
+if dropped:
+    st.warning("Ignored invalid ticker(s): " + ", ".join(dropped[:5]))
 if len(tickers) > MAX_TICKERS:
     st.warning(f"Showing first {MAX_TICKERS} tickers only.")
     tickers = tickers[:MAX_TICKERS]
@@ -813,8 +821,13 @@ for tab_idx, ticker in enumerate(all_results.keys()):
             "debt_to_equity":  "D/E",
             "interest_coverage": "Int. Coverage",
         }
-        table_df = df[list(display_cols.keys())].rename(columns=display_cols)
-        table_df = table_df.sort_values("Period", ascending=False).reset_index(drop=True)
+        # Sort by the real date, not the "Q3'24" label — string-sorting labels
+        # groups all Q4s together regardless of year.
+        table_df = (
+            df.sort_values("period", ascending=False)[list(display_cols.keys())]
+            .rename(columns=display_cols)
+            .reset_index(drop=True)
+        )
         st.dataframe(
             table_df.style.format(
                 {c: "{:.1f}" for c in display_cols.values() if c != "Period"},
@@ -880,7 +893,10 @@ if len(all_results) > 1:
                 text=[fmt_fn(v) if fmt_fn else str(v) for v in vals],
                 textposition="outside",
                 textfont=dict(family="IBM Plex Mono, 'Courier New', monospace", color="#e0e0e0", size=10),
-                marker_color=[_C_BLUE, _C_GREEN, _C_AMBER, _C_PURPLE][:len(ticker_list)],
+                marker_color=[
+                    [_C_BLUE, _C_GREEN, _C_AMBER, _C_PURPLE][i % 4]
+                    for i in range(len(ticker_list))
+                ],
             ))
             fig.update_layout(**_chart_theme(
                 title=title,

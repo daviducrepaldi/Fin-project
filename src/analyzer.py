@@ -11,7 +11,16 @@ Return structure from compute_ratios():
 }
 """
 
+from datetime import datetime
+
 MAX_DISPLAY = 8   # quarters shown side-by-side in terminal
+
+
+def _parse_period(period_str):
+    try:
+        return datetime.strptime(period_str, '%Y-%m-%d')
+    except (ValueError, TypeError):
+        return None
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -33,9 +42,27 @@ def _pct(val, decimals=1):
 
 
 def _ttm(rows, field, n=4):
-    """Sum the `n` most-recent non-None values. Returns None if fewer than n found."""
-    vals = [r.get(field) for r in rows if r.get(field) is not None][:n]
-    return sum(vals) if len(vals) == n else None
+    """
+    Sum the `n` most-recent non-None values, but only if they actually form a
+    trailing-twelve-month window (span ≤ ~13 months). Non-contiguous quarters
+    (e.g. a missing filing) would silently produce a >12-month "TTM" otherwise.
+    Annual-only filers (consecutive periods ~1 year apart) use the latest value
+    directly — a fiscal year already is a trailing twelve months.
+    """
+    pairs = [(r['period'], r[field]) for r in rows
+             if r.get(field) is not None and r.get('period')]
+    pairs.sort(reverse=True)
+    dates = [_parse_period(p) for p, _ in pairs]
+    if len(pairs) >= 2 and all(dates):
+        gaps = [(dates[i] - dates[i + 1]).days for i in range(len(dates) - 1)]
+        if all(300 <= g <= 430 for g in gaps):
+            return pairs[0][1]   # annual rows — latest FY value is the TTM
+    if len(pairs) < n:
+        return None
+    newest, oldest = _parse_period(pairs[0][0]), _parse_period(pairs[n - 1][0])
+    if newest and oldest and (newest - oldest).days > 400:
+        return None   # quarters aren't contiguous — refuse to fake a TTM
+    return sum(v for _, v in pairs[:n])
 
 
 def _arrow(pct):
@@ -197,17 +224,25 @@ def _ttm_ratios(income_rows, balance_rows, cashflow_rows, market):
 
 def _compute_trends(quarterly_ratios):
     """
-    For each quarter that has a same-quarter-prior-year peer (index i vs i+4),
-    compute YoY % change for flow items and bps change for margin items.
+    For each quarter that has a same-quarter-prior-year peer, compute YoY %
+    change for flow items and bps change for margin items. The peer is found
+    by date (period ~1 year earlier), not by index offset — quarterly data can
+    have gaps, so "4 rows back" is not always the same quarter a year ago.
     Returns a list aligned with quarterly_ratios (None entries where no prior-year data).
     """
     trends = []
-    n = len(quarterly_ratios)
-    for i, q in enumerate(quarterly_ratios):
-        if i + 4 >= n:
+    dated = [(_parse_period(q.get('period')), q) for q in quarterly_ratios]
+    for q in quarterly_ratios:
+        cur_date = _parse_period(q.get('period'))
+        prev = None
+        if cur_date:
+            for p_date, p_q in dated:
+                if p_date and 330 <= (cur_date - p_date).days <= 430:
+                    prev = p_q
+                    break
+        if prev is None:
             trends.append(None)
             continue
-        prev = quarterly_ratios[i + 4]
         rev_yoy  = _yoy_pct(q.get('revenue'), prev.get('revenue'))
         fcf_yoy  = _yoy_pct(q.get('free_cash_flow'), prev.get('free_cash_flow'))
         gm_bps   = _yoy_bps(q.get('gross_margin'),  prev.get('gross_margin'))
@@ -218,10 +253,10 @@ def _compute_trends(quarterly_ratios):
             'period':       q['period'],
             'rev_yoy_pct':  rev_yoy,  'rev_arrow':  _arrow(rev_yoy),
             'fcf_yoy_pct':  fcf_yoy,  'fcf_arrow':  _arrow(fcf_yoy),
-            'gm_bps':       gm_bps,   'gm_arrow':   _arrow(gm_bps / 100 if gm_bps else None),
-            'op_bps':       op_bps,   'op_arrow':   _arrow(op_bps / 100 if op_bps else None),
-            'ni_bps':       ni_bps,   'ni_arrow':   _arrow(ni_bps / 100 if ni_bps else None),
-            'eb_bps':       eb_bps,   'eb_arrow':   _arrow(eb_bps / 100 if eb_bps else None),
+            'gm_bps':       gm_bps,   'gm_arrow':   _arrow(gm_bps / 100 if gm_bps is not None else None),
+            'op_bps':       op_bps,   'op_arrow':   _arrow(op_bps / 100 if op_bps is not None else None),
+            'ni_bps':       ni_bps,   'ni_arrow':   _arrow(ni_bps / 100 if ni_bps is not None else None),
+            'eb_bps':       eb_bps,   'eb_arrow':   _arrow(eb_bps / 100 if eb_bps is not None else None),
         })
     return trends
 
@@ -291,10 +326,11 @@ def compute_rating(result: dict) -> dict:
     Compute a Buy/Hold/Sell rating from an already-computed result dict.
 
     Scoring model (100 pts total):
-      Valuation     30 pts  — P/E trailing (12), EV/EBITDA (10), P/B (8)
+      Valuation     30 pts  — P/E trailing (9), EV/EBITDA (8), FCF yield (8), P/B (5)
       Profitability 30 pts  — Net Margin TTM (15), ROE TTM (15)
-      Growth        25 pts  — Revenue YoY % (most recent quarter with data)
-      Health        15 pts  — Current Ratio (8), Debt/Equity (7)
+      Growth        25 pts  — Revenue YoY %, averaged over up to 4 recent quarters
+                              (a single quarter is too noisy to drive 25% of the score)
+      Health        15 pts  — Current Ratio (6), Debt/Equity (6), Interest Coverage (3)
 
     Thresholds: score >= 65 → BUY, >= 40 → HOLD, < 40 → SELL
     Missing inputs are skipped and the component score is proportionally rescaled.
@@ -308,21 +344,32 @@ def compute_rating(result: dict) -> dict:
     ttm    = result.get("ttm") or {}
     trends = result.get("trends") or []
 
-    # ── Valuation (30 pts: P/E=12, EV/EBITDA=10, P/B=8) ──────────────────────
+    # ── Valuation (30 pts: P/E=9, EV/EBITDA=8, FCF yield=8, P/B=5) ───────────
     pe = market.get("pe_trailing")
     ev = market.get("ev_ebitda_info")
+    if ev is None:
+        ev = ttm.get("ev_ebitda_calc")   # fall back to the value we computed ourselves
     pb = market.get("pb_ratio")
 
-    pe_score = ev_score = pb_score = None
+    # FCF yield (TTM FCF / market cap, in %) — valuation anchored to actual cash
+    # generation, harder to distort with accounting choices than P/E.
+    fcf_ttm = ttm.get("free_cash_flow")
+    mcap    = market.get("market_cap")
+    fcf_yield = (fcf_ttm / mcap * 100) if (fcf_ttm is not None and mcap) else None
+
+    pe_score = ev_score = pb_score = fcfy_score = None
     if pe is not None:
-        pe_score = 0 if pe < 0 else _score_bracket(pe, [(12, 12), (18, 10), (25, 7), (35, 4), (50, 2)])
+        pe_score = 0 if pe < 0 else _score_bracket(pe, [(12, 9), (18, 7), (25, 5), (35, 3), (50, 1)])
     if ev is not None and ev >= 0:
-        ev_score = _score_bracket(ev, [(8, 10), (12, 8), (18, 5), (25, 2)])
+        ev_score = _score_bracket(ev, [(8, 8), (12, 6), (18, 4), (25, 1)])
     if pb is not None and pb >= 0:
-        pb_score = _score_bracket(pb, [(1.5, 8), (3, 6), (5, 3), (10, 1)])
+        pb_score = _score_bracket(pb, [(1.5, 5), (3, 4), (5, 2), (10, 1)])
+    if fcf_yield is not None:
+        fcfy_score = 0 if fcf_yield < 0 else _score_bracket_high(
+            fcf_yield, [(8, 8), (5, 6), (3, 4), (1.5, 2), (0, 1)])
 
     val_raw = val_avail = 0
-    for score, max_pts in [(pe_score, 12), (ev_score, 10), (pb_score, 8)]:
+    for score, max_pts in [(pe_score, 9), (ev_score, 8), (fcfy_score, 8), (pb_score, 5)]:
         if score is not None:
             val_raw   += score
             val_avail += max_pts
@@ -345,12 +392,12 @@ def compute_rating(result: dict) -> dict:
             prof_avail += max_pts
     prof_component = (prof_raw / prof_avail * 30) if prof_avail > 0 else None
 
-    # ── Growth (25 pts: revenue YoY %) ────────────────────────────────────────
-    rev_yoy = None
-    for t in trends:
-        if t is not None and t.get("rev_yoy_pct") is not None:
-            rev_yoy = t["rev_yoy_pct"]
-            break
+    # ── Growth (25 pts: revenue YoY %, averaged over recent quarters) ─────────
+    # One quarter's YoY is noisy (one-off charges, seasonality quirks); average
+    # up to the 4 most recent quarters that have a prior-year comparison.
+    yoy_vals = [t["rev_yoy_pct"] for t in trends
+                if t is not None and t.get("rev_yoy_pct") is not None][:4]
+    rev_yoy = round(sum(yoy_vals) / len(yoy_vals), 1) if yoy_vals else None
 
     if rev_yoy is None:
         growth_component = 12.0   # neutral — no data, don't penalise
@@ -362,18 +409,21 @@ def compute_rating(result: dict) -> dict:
     elif rev_yoy >= -5:  growth_component = 3.0
     else:                growth_component = 0.0
 
-    # ── Financial Health (15 pts: current_ratio=8, d/e=7) ────────────────────
+    # ── Financial Health (15 pts: current_ratio=6, d/e=6, int. coverage=3) ───
     cr = ttm.get("current_ratio")
     de = ttm.get("debt_to_equity")
+    ic = ttm.get("interest_coverage")
 
-    cr_score = de_score = None
+    cr_score = de_score = ic_score = None
     if cr is not None:
-        cr_score = _score_bracket_high(cr, [(2, 8), (1.5, 6), (1, 3)])  # below 1 → 0
+        cr_score = _score_bracket_high(cr, [(2, 6), (1.5, 4), (1, 2)])  # below 1 → 0
     if de is not None:
-        de_score = 0 if de < 0 else _score_bracket(de, [(0.3, 7), (0.8, 5), (1.5, 3), (3.0, 1)])
+        de_score = 0 if de < 0 else _score_bracket(de, [(0.3, 6), (0.8, 4), (1.5, 2), (3.0, 1)])
+    if ic is not None:
+        ic_score = 0 if ic < 0 else _score_bracket_high(ic, [(10, 3), (5, 2), (2, 1)])
 
     health_raw = health_avail = 0
-    for score, max_pts in [(cr_score, 8), (de_score, 7)]:
+    for score, max_pts in [(cr_score, 6), (de_score, 6), (ic_score, 3)]:
         if score is not None:
             health_raw   += score
             health_avail += max_pts

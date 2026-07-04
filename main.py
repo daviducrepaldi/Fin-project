@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import re
 from src import db, fetcher, analyzer, display, exporter
+
+# Same shape enforced by the web app: tickers end up in API URL paths and in
+# export filenames, so anything else (slashes, "..") must never get through.
+TICKER_RE = re.compile(r'^[A-Z]{1,10}([.-][A-Z]{1,4})?$')
 
 
 def main():
@@ -10,7 +15,11 @@ def main():
     parser.add_argument('--offline', action='store_true', help='Use cached SQLite data only')
     parser.add_argument('--export',  action='store_true', help='Export results to CSV')
     args = parser.parse_args()
-    tickers, offline, do_export = args.tickers, args.offline, args.export
+    offline, do_export = args.offline, args.export
+
+    tickers = [t for t in args.tickers if TICKER_RE.match(t)]
+    for bad in [t for t in args.tickers if not TICKER_RE.match(t)]:
+        print(f"Skipping invalid ticker: {bad!r}")
 
     db.init_db()
 

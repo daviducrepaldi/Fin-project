@@ -8,12 +8,15 @@ Usage:
 """
 import argparse
 import json
+import re
 import sys
 import time
 from pathlib import Path
 
 DEFAULT_TICKERS = ['AAPL', 'AMZN', 'GOOGL', 'JPM', 'META', 'MSFT', 'NVDA', 'TSLA']
 DATA_DIR = Path(__file__).parent / 'data'
+# Ticker goes into the output filename — never allow slashes or ".."
+TICKER_RE = re.compile(r'^[A-Z]{1,10}([.-][A-Z]{1,4})?$')
 
 
 def main():
@@ -24,6 +27,11 @@ def main():
         help='Space-separated list of tickers to fetch (default: all pre-loaded tickers)',
     )
     args = parser.parse_args()
+
+    bad = [t for t in args.tickers if not TICKER_RE.match(t)]
+    if bad:
+        print(f"Invalid ticker(s): {', '.join(bad)}")
+        sys.exit(1)
 
     from src import fetcher
     from src.utils import clean_for_json
