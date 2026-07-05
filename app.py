@@ -418,6 +418,11 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
                 except Exception:
                     pass   # Cloud filesystem is read-only — that's fine
             return (data, result), _price_warning(ticker, data)
+        except fetcher.UnknownTickerError:
+            return None, (
+                f"**{ticker}** is not a valid ticker — no listed company with that "
+                f"symbol in the SEC registry. Check the spelling (e.g. AAPL, not APPL)."
+            )
         except Exception as e:
             print(f"FETCH ERROR [force_refresh] {ticker}: {type(e).__name__}: {e}")
             data = _load_file(ticker)
@@ -457,6 +462,15 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
         result = analyzer.compute_ratios(data)
         cache[ticker] = (data, result)
         return (data, result), _price_warning(ticker, data)
+    except fetcher.UnknownTickerError:
+        try:
+            status_box.update(label=f"{ticker}: not a valid ticker", state="error")
+        except Exception:
+            pass
+        return None, (
+            f"**{ticker}** is not a valid ticker — no listed company with that "
+            f"symbol in the SEC registry. Check the spelling (e.g. AAPL, not APPL)."
+        )
     except Exception as e:
         print(f"FETCH ERROR [analyze] {ticker}: {type(e).__name__}: {e}")
         available = '  ·  '.join(AVAILABLE_TICKERS)

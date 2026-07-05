@@ -67,6 +67,11 @@ _EDGAR_HEADERS     = {
 _cik_cache: dict = {}   # ticker → zero-padded CIK, loaded once per process
 
 
+class UnknownTickerError(RuntimeError):
+    """Symbol is not in the SEC's listed-company registry — permanent,
+    never worth retrying."""
+
+
 # ── Tiingo helpers ────────────────────────────────────────────────────────────
 
 def _tiingo_key() -> str:
@@ -201,7 +206,7 @@ def _get_cik(ticker: str) -> str:
         }
     cik = _cik_cache.get(ticker.upper())
     if not cik:
-        raise RuntimeError(f"{ticker}: not found in SEC EDGAR ticker list")
+        raise UnknownTickerError(f"{ticker}: not found in SEC EDGAR ticker list")
     return cik
 
 
@@ -838,11 +843,14 @@ def _compute_market(price, tiingo: dict, income: list, balance: list,
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def _retry(fn, ticker: str, retries: int, delay_base: int = 4, status_callback=None) -> dict:
-    """Call fn(ticker) up to `retries` times with exponential back-off."""
+    """Call fn(ticker) up to `retries` times with exponential back-off.
+    UnknownTickerError is permanent and re-raised immediately."""
     last_exc = None
     for attempt in range(retries):
         try:
             return fn(ticker)
+        except UnknownTickerError:
+            raise
         except Exception as e:
             last_exc = e
             if attempt < retries - 1:

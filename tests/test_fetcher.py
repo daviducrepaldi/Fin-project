@@ -314,3 +314,31 @@ class TestYtdQuarterly:
         ])
         q = _ytd_quarterly(concept)
         assert q == {"2024-12-28": 100.0, "2025-09-27": 90.0}
+
+
+class TestUnknownTickerFailsFast:
+    def test_retry_does_not_retry_unknown_ticker(self):
+        from src.fetcher import _retry, UnknownTickerError
+        calls = {"n": 0}
+
+        def fn(ticker):
+            calls["n"] += 1
+            raise UnknownTickerError(f"{ticker}: not found")
+
+        import pytest
+        with pytest.raises(UnknownTickerError):
+            _retry(fn, "TABLE", retries=3, delay_base=0)
+        assert calls["n"] == 1   # no pointless retries with sleeps
+
+    def test_transient_errors_still_retry(self):
+        from src.fetcher import _retry
+        calls = {"n": 0}
+
+        def fn(ticker):
+            calls["n"] += 1
+            if calls["n"] < 3:
+                raise RuntimeError("transient")
+            return {"ok": True}
+
+        assert _retry(fn, "AAPL", retries=3, delay_base=0) == {"ok": True}
+        assert calls["n"] == 3
