@@ -152,6 +152,41 @@ def _compute_beta(prices: list) -> float:
     return round(cov / var_b, 3)
 
 
+def _trim_prices(raw: list) -> list:
+    """Tiingo rows → the compact {date, open, high, low, close, volume}
+    format stored in the JSON files and consumed by technicals/macro."""
+    def _r(v):
+        return round(v, 4) if isinstance(v, (int, float)) else None
+
+    return [
+        {
+            "date":   p["date"][:10],
+            "open":   _r(p.get("adjOpen")),
+            "high":   _r(p.get("adjHigh")),
+            "low":    _r(p.get("adjLow")),
+            "close":  _r(p.get("adjClose")),
+            "volume": p.get("adjVolume"),
+        }
+        for p in raw if p.get("date")
+    ]
+
+
+def get_price_series(symbol: str) -> list:
+    """
+    Public: one year of daily rows (trimmed format) for a benchmark or
+    sector ETF. Shares the SPY cache used by beta, so a process never
+    fetches the benchmark twice.
+    """
+    global _benchmark_prices_cache
+    if symbol == _BENCHMARK and _benchmark_prices_cache:
+        raw = _benchmark_prices_cache
+    else:
+        raw = _get_tiingo_prices(symbol)
+        if symbol == _BENCHMARK:
+            _benchmark_prices_cache = raw
+    return _trim_prices(raw)
+
+
 def _get_tiingo_data(ticker: str) -> dict:
     """
     Fetch one year of daily prices from Tiingo (single request — the free
@@ -167,21 +202,7 @@ def _get_tiingo_data(ticker: str) -> dict:
 
     closes        = [p["adjClose"] for p in prices if p.get("adjClose") is not None]
     annual_div    = sum(p.get("divCash", 0) or 0 for p in prices)
-
-    def _r(v):
-        return round(v, 4) if isinstance(v, (int, float)) else None
-
-    price_series = [
-        {
-            "date":   p["date"][:10],
-            "open":   _r(p.get("adjOpen")),
-            "high":   _r(p.get("adjHigh")),
-            "low":    _r(p.get("adjLow")),
-            "close":  _r(p.get("adjClose")),
-            "volume": p.get("adjVolume"),
-        }
-        for p in prices if p.get("date")
-    ]
+    price_series  = _trim_prices(prices)
 
     return {
         "price":          prices[-1].get("adjClose"),

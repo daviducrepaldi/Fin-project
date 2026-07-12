@@ -29,8 +29,8 @@ from datetime import datetime, timedelta
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-from src import db, fetcher, analyzer, technicals
-from src.utils import period_to_quarter_label, clean_for_json
+from src import db, fetcher, analyzer, technicals, macro
+from src.utils import period_to_quarter_label, clean_for_json, classify_sector
 
 # db.init_db() intentionally not called here — the web app reads from JSON files,
 # not SQLite. Init is only needed by the CLI (main.py).
@@ -371,6 +371,141 @@ def _save_file(ticker: str, data: dict):
         json.dump(clean_for_json(data), f, indent=2)
 
 
+# ── macro context (SPY / sector ETFs / news) ─────────────────────────────────
+
+def _prices_fresh(series, max_age_days: int = 5) -> bool:
+    """True when the newest row is recent enough to skip a live refresh
+    (5 days tolerates weekends + market holidays)."""
+    if not series:
+        return False
+    last = max((p.get("date") or "") for p in series)
+    try:
+        return (datetime.now() - datetime.strptime(last, "%Y-%m-%d")).days <= max_age_days
+    except ValueError:
+        return False
+
+
+def _get_macro_prices(symbol: str):
+    """
+    Daily series for SPY / a sector ETF. Priority: session cache → fresh
+    disk file → live Tiingo (persisted back) → stale disk file → None.
+    `symbol` only ever comes from macro.SECTOR_ETFS / MARKET_BENCHMARK,
+    never from user input.
+    """
+    cache = st.session_state.setdefault('macro_cache', {})
+    if symbol in cache:
+        return cache[symbol]
+
+    path = (DATA_DIR / f'_macro_{symbol}.json').resolve()
+    stored = None
+    if path.parent == DATA_DIR.resolve():
+        try:
+            with open(path) as f:
+                stored = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            stored = None
+
+    series = stored if _prices_fresh(stored) else None
+    if series is None:
+        try:
+            series = fetcher.get_price_series(symbol)
+            if path.parent == DATA_DIR.resolve():
+                try:
+                    with open(path, 'w') as f:
+                        json.dump(clean_for_json(series), f)
+                except OSError:
+                    pass   # Cloud filesystem is read-only — that's fine
+        except Exception:
+            series = stored   # stale beats nothing
+
+    cache[symbol] = series
+    return series
+
+
+def _get_news(ticker: str) -> list:
+    """Headlines for a ticker, fetched once per session (keyless RSS)."""
+    cache = st.session_state.setdefault('news_cache', {})
+    if ticker not in cache:
+        cache[ticker] = macro.fetch_news(ticker, limit=12)
+    return cache[ticker]
+
+
+def _render_ticker_tape():
+    """NYSE-style scrolling tape built from the pre-loaded JSON files —
+    zero API calls; shows each ticker's last close vs the prior day."""
+    items = []
+    for t in AVAILABLE_TICKERS:
+        data = _load_file(t)
+        pc = macro.price_change((data or {}).get("prices"))
+        if pc:
+            items.append((t, pc[0], pc[1]))
+    if not items:
+        return
+
+    cells = []
+    for t, px, chg in items:
+        color = _C_GREEN if chg >= 0 else _C_RED
+        arrow = "▲" if chg >= 0 else "▼"
+        cells.append(
+            f'<span class="tape-item">{html.escape(t)} '
+            f'<span style="color:#e0e0e0;">{px:,.2f}</span> '
+            f'<span style="color:{color};">{arrow} {abs(chg):.2f}%</span></span>'
+        )
+    strip = "".join(cells)
+    st.markdown(f"""
+<style>
+.tape-wrap {{ overflow:hidden; white-space:nowrap; background:#111111;
+  border-top:1px solid #2a2a2a; border-bottom:1px solid #2a2a2a;
+  padding:0.35rem 0; margin-bottom:0.6rem; }}
+.tape-move {{ display:inline-block; white-space:nowrap;
+  animation: tape-scroll 45s linear infinite; }}
+.tape-wrap:hover .tape-move {{ animation-play-state: paused; }}
+.tape-item {{ font-family:'IBM Plex Mono','Courier New',monospace;
+  font-size:0.8rem; color:#ff6600; letter-spacing:0.04em; padding:0 1.4rem; }}
+@keyframes tape-scroll {{ from {{ transform: translateX(0); }}
+  to {{ transform: translateX(-50%); }} }}
+</style>
+<div class="tape-wrap"><div class="tape-move">{strip}{strip}</div></div>
+""", unsafe_allow_html=True)
+
+
+def _render_market_backdrop():
+    """S&P 500 regime snapshot on the home screen (SPY daily series)."""
+    spy = _get_macro_prices(macro.MARKET_BENCHMARK)
+    tech = technicals.compute_technicals(spy) if spy else None
+    if not tech:
+        return
+
+    _section_header("MARKET BACKDROP — S&P 500 (SPY)")
+    s1, s2, s3, s4, s5, s6 = st.columns(6)
+    s1.metric("SPY Last", f"${tech['last_close']:,.2f}")
+    s2.metric("1M Return", _fmt_signed_pct(tech["return_1m"]))
+    s3.metric("3M Return", _fmt_signed_pct(tech["return_3m"]))
+    s4.metric("1Y Return", _fmt_signed_pct(tech["return_1y"]))
+    s5.metric("Ann. Vol", _fmt_pct(tech["ann_vol_pct"]))
+    s6.metric("Trend", "ABOVE 200D ▲" if tech["above_sma200"] else "BELOW 200D ▼")
+
+    fig = go.Figure()
+    fig.add_scatter(x=tech["dates"], y=tech["closes"], name="SPY",
+                    mode="lines", line=dict(color=_C_GREEN, width=1.6))
+    fig.add_scatter(x=tech["dates"], y=tech["sma50"], name="SMA 50",
+                    mode="lines", line=dict(color=_C_AMBER, width=1.2))
+    fig.add_scatter(x=tech["dates"], y=tech["sma200"], name="SMA 200",
+                    mode="lines", line=dict(color=_C_BLUE, width=1.2))
+    fig.update_layout(**_chart_theme(
+        title="S&P 500 — 1Y DAILY (SPY, ADJUSTED)", height=260,
+        legend=dict(orientation="h", y=1.08, x=1, xanchor="right",
+                    bgcolor="rgba(0,0,0,0)",
+                    font=dict(family="IBM Plex Mono, 'Courier New', monospace",
+                              color="#888888", size=9)),
+    ))
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption(
+        "End-of-day data. Trend flag compares the last close to the 200-day "
+        "moving average — a common risk-on / risk-off proxy."
+    )
+
+
 def _price_warning(ticker: str, data: dict):
     """Info message when EDGAR fundamentals loaded but price data didn't."""
     err = (data or {}).get("price_data_error")
@@ -488,6 +623,53 @@ def _fmt_signed_pct(v):
     return f"{'+' if v >= 0 else ''}{v:.1f}%"
 
 
+def _render_relative_performance(ticker: str, prices: list, data: dict):
+    """Stock vs its sector SPDR fund vs SPY over 6 months, rebased to 100."""
+    sector = classify_sector(data.get("company") or {})
+    etf_sym = macro.SECTOR_ETFS.get(sector)
+
+    series = [(ticker, prices, _C_AMBER)]
+    if etf_sym:
+        etf = _get_macro_prices(etf_sym)
+        if etf:
+            series.append((etf_sym, etf, _C_PURPLE))
+    spy = _get_macro_prices(macro.MARKET_BENCHMARK)
+    if spy:
+        series.append((macro.MARKET_BENCHMARK, spy, _C_BLUE))
+    if len(series) < 2:
+        return   # no benchmark data available — nothing to compare against
+
+    windows = [(name, macro.indexed_window(pr, days=126), color)
+               for name, pr, color in series]
+    windows = [w for w in windows if w[1]]
+    if len(windows) < 2:
+        return
+
+    _section_header("RELATIVE PERFORMANCE — 6M (INDEXED TO 100)")
+    cols = st.columns(len(windows))
+    fig = go.Figure()
+    for col, (name, (dates, values), color) in zip(cols, windows):
+        col.metric(f"{name} 6M", _fmt_signed_pct(round(values[-1] - 100, 1)))
+        fig.add_scatter(x=dates, y=values, name=name, mode="lines",
+                        line=dict(color=color, width=1.6))
+    fig.update_layout(**_chart_theme(
+        title=f"{html.escape(ticker)} VS SECTOR VS MARKET", height=280,
+        legend=dict(orientation="h", y=1.08, x=1, xanchor="right",
+                    bgcolor="rgba(0,0,0,0)",
+                    font=dict(family="IBM Plex Mono, 'Courier New', monospace",
+                              color="#888888", size=9)),
+    ))
+    st.plotly_chart(fig, use_container_width=True)
+    if etf_sym:
+        st.caption(
+            f"Sector proxy: {etf_sym} (SPDR {sector.replace('_', ' ')} fund). "
+            "Tells you whether the stock is moving on its own merits or riding "
+            "its sector."
+        )
+    else:
+        st.caption("No sector fund mapped for this company — comparing against SPY only.")
+
+
 def _render_market_intel(ticker: str, data: dict, result: dict):
     """Render the MARKET INTEL sub-tab: price action, reverse DCF,
     insider activity and the EDGAR filings feed."""
@@ -563,6 +745,10 @@ def _render_market_intel(ticker: str, data: dict, result: dict):
                 margin=dict(t=24, b=8, l=4, r=4), showlegend=False,
             ))
             st.plotly_chart(vfig, use_container_width=True)
+
+    # ── relative performance vs sector & market ──────────────────
+    if tech:
+        _render_relative_performance(ticker, prices, data)
 
     # ── reverse DCF ───────────────────────────────────────────────
     _section_header("IMPLIED EXPECTATIONS (REVERSE DCF)")
@@ -661,6 +847,33 @@ def _render_market_intel(ticker: str, data: dict, result: dict):
             "companies announce results before filing the 10-Q/10-K."
         )
 
+    # ── news ──────────────────────────────────────────────────────
+    _section_header("NEWS")
+    news = _get_news(ticker)
+    if news:
+        news_df = pd.DataFrame([{
+            "Date":     n["date"],
+            "Headline": n["title"],
+            "Source":   n["source"],
+            "Link":     n["url"],
+        } for n in news])
+        st.dataframe(
+            news_df,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Headline": st.column_config.TextColumn(width="large"),
+                "Link":     st.column_config.LinkColumn("Open", display_text="READ ↗"),
+            },
+        )
+        st.caption(
+            "Headlines from free public RSS feeds (Yahoo Finance / Google News) — "
+            "press coverage, not vetted. Cross-check against the filings feed above: "
+            "8-Ks are what the company legally disclosed."
+        )
+    else:
+        st.info("No recent headlines found — news feeds may be unreachable right now.")
+
 
 # ── sidebar ───────────────────────────────────────────────────────────────────
 
@@ -726,6 +939,7 @@ force_refresh  = st.session_state.pop('force_refresh', False)
 
 if not active_tickers:
     # ── Terminal welcome screen ────────────────────────────────────────────────
+    _render_ticker_tape()
     st.markdown("""
 <div style="font-family:'IBM Plex Mono','Courier New',monospace;padding:0.5rem 0 0.8rem;">
   <div style="color:#ff6600;font-size:1.5rem;font-weight:600;letter-spacing:0.06em;
@@ -742,11 +956,14 @@ if not active_tickers:
         '<div style="color:#e0e0e0;font-size:0.8rem;font-family:\'IBM Plex Mono\',monospace;">'
         'Enter one or more tickers in the sidebar and click <span style="color:#ff6600;">ANALYZE</span>.<br><br>'
         '<span style="color:#ff6600;">FEATURES:</span> Quarterly financials · TTM aggregates · Margin trends · '
-        'YoY growth · Liquidity &amp; leverage · Valuation multiples · Multi-ticker comparison<br><br>'
+        'YoY growth · Liquidity &amp; leverage · Valuation multiples · Multi-ticker comparison · '
+        'Price action &amp; insider intel · Sector-relative performance · News feed<br><br>'
         f'<span style="color:#ff6600;">PRE-LOADED:</span> {", ".join(AVAILABLE_TICKERS)}'
         '</div>',
         unsafe_allow_html=True,
     )
+
+    _render_market_backdrop()
 
     st.markdown('<div style="color:#888;font-size:0.68rem;font-family:\'IBM Plex Mono\',monospace;margin-top:0.6rem;letter-spacing:0.06em;">PREVIEW — RUN AN ANALYSIS TO POPULATE</div>', unsafe_allow_html=True)
 
