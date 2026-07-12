@@ -72,6 +72,11 @@ class UnknownTickerError(RuntimeError):
     never worth retrying."""
 
 
+class NoFundamentalsError(RuntimeError):
+    """Symbol is registered with the SEC but files no XBRL financial
+    statements (ETFs, funds, trusts) — permanent, never worth retrying."""
+
+
 # ── Tiingo helpers ────────────────────────────────────────────────────────────
 
 def _tiingo_key() -> str:
@@ -339,6 +344,10 @@ def _fetch_insider_transactions(cik: str, recent: dict, limit: int = 8) -> list:
 def _get_edgar_facts(cik: str) -> dict:
     url = _EDGAR_FACTS_URL.format(cik=cik)
     r = requests.get(url, headers=_EDGAR_HEADERS, timeout=60)
+    if r.status_code == 404:
+        # registered entity with no companyfacts — ETF/fund/trust
+        raise NoFundamentalsError(
+            f"CIK {cik} files no XBRL financial statements (ETF or fund?)")
     r.raise_for_status()
     return r.json()
 
@@ -865,12 +874,13 @@ def _compute_market(price, tiingo: dict, income: list, balance: list,
 
 def _retry(fn, ticker: str, retries: int, delay_base: int = 4, status_callback=None) -> dict:
     """Call fn(ticker) up to `retries` times with exponential back-off.
-    UnknownTickerError is permanent and re-raised immediately."""
+    UnknownTickerError / NoFundamentalsError are permanent and re-raised
+    immediately."""
     last_exc = None
     for attempt in range(retries):
         try:
             return fn(ticker)
-        except UnknownTickerError:
+        except (UnknownTickerError, NoFundamentalsError):
             raise
         except Exception as e:
             last_exc = e

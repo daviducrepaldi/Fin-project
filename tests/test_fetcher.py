@@ -330,6 +330,19 @@ class TestUnknownTickerFailsFast:
             _retry(fn, "TABLE", retries=3, delay_base=0)
         assert calls["n"] == 1   # no pointless retries with sleeps
 
+    def test_retry_does_not_retry_no_fundamentals(self):
+        from src.fetcher import _retry, NoFundamentalsError
+        calls = {"n": 0}
+
+        def fn(ticker):
+            calls["n"] += 1
+            raise NoFundamentalsError(f"{ticker}: no companyfacts (ETF?)")
+
+        import pytest
+        with pytest.raises(NoFundamentalsError):
+            _retry(fn, "SPY", retries=3, delay_base=0)
+        assert calls["n"] == 1
+
     def test_transient_errors_still_retry(self):
         from src.fetcher import _retry
         calls = {"n": 0}

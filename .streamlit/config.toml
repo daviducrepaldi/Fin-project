@@ -1,0 +1,14 @@
+# Native Streamlit theme matching the Bloomberg Terminal CSS in app.py.
+# This makes version-dependent widgets (input focus rings, tab highlight,
+# spinners) render orange-on-black even where the CSS selectors in app.py
+# don't match a given Streamlit version's internal markup.
+[theme]
+base = "dark"
+primaryColor = "#ff6600"
+backgroundColor = "#0a0a0a"
+secondaryBackgroundColor = "#111111"
+textColor = "#e0e0e0"
+font = "monospace"
+
+[browser]
+gatherUsageStats = false

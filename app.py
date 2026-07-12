@@ -120,13 +120,16 @@ p, li { color: var(--text); line-height: 1.5; font-size: 0.84rem; }
 [data-testid="stSidebar"] div { color: var(--text); }
 [data-testid="stSidebarContent"] { padding: 0.8rem 0.8rem; }
 
-/* Text input — style only the input element; kill the BaseWeb wrapper's own
-   border so the box doesn't render doubled */
+/* Text input — style only the <input> element itself; every wrapper div
+   (BaseWeb draws its own border + focus ring, markup varies by Streamlit
+   version) is stripped so the box doesn't render doubled */
+[data-testid="stTextInput"] div,
 [data-testid="stTextInput"] [data-baseweb="input"],
 [data-testid="stTextInput"] [data-baseweb="base-input"] {
-    background: var(--bg) !important;
     border: none !important;
     box-shadow: none !important;
+    outline: none !important;
+    background: transparent;
 }
 /* "Press Enter to submit form" hint overlaps the typed text — hide it */
 [data-testid="InputInstructions"] { display: none !important; }
@@ -177,13 +180,18 @@ p, li { color: var(--text); line-height: 1.5; font-size: 0.84rem; }
     color: var(--orange) !important;
 }
 
-/* ── Tabs ── */
-[data-testid="stTabs"] [role="tablist"] {
+/* ── Tabs ──
+   Selectors doubled with BaseWeb data attributes: Streamlit's internal
+   markup changes between versions and unpadded tab labels render
+   concatenated ("FUNDAMENTALSMARKET INTEL"). */
+[data-testid="stTabs"] [role="tablist"],
+[data-testid="stTabs"] [data-baseweb="tab-list"] {
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     gap: 0;
 }
-[data-testid="stTabs"] button[role="tab"] {
+[data-testid="stTabs"] button[role="tab"],
+[data-testid="stTabs"] button[data-baseweb="tab"] {
     background: transparent !important;
     color: var(--dim);
     font-family: var(--font) !important;
@@ -192,7 +200,8 @@ p, li { color: var(--text); line-height: 1.5; font-size: 0.84rem; }
     letter-spacing: 0.07em;
     text-transform: uppercase;
     border-bottom: 2px solid transparent;
-    padding: 0.4rem 1rem;
+    padding: 0.4rem 1rem !important;
+    margin: 0 !important;
 }
 [data-testid="stTabs"] button[role="tab"]:hover { color: var(--text); }
 [data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
@@ -200,6 +209,9 @@ p, li { color: var(--text); line-height: 1.5; font-size: 0.84rem; }
     border-bottom-color: var(--orange) !important;
     background: transparent !important;
 }
+/* the sliding underline newer Streamlit draws in primaryColor */
+[data-testid="stTabs"] [data-baseweb="tab-highlight"] { background-color: var(--orange) !important; }
+[data-testid="stTabs"] [data-baseweb="tab-border"] { background-color: var(--border) !important; }
 [data-testid="stTabContent"] { background: var(--bg); padding-top: 0.6rem; }
 
 /* ── Metric cards ── */
@@ -540,6 +552,24 @@ def _fail_hint(exc) -> str:
     return ""
 
 
+def _unknown_ticker_msg(ticker: str) -> str:
+    return (
+        f"**{ticker}** is not a valid ticker — no listed company with that "
+        f"symbol in the SEC registry. Check the spelling (e.g. AAPL, not APPL). "
+        f"Note: most ETFs (XLK, QQQ, VOO…) aren't covered — this analyzer "
+        f"rates operating companies from their financial statements."
+    )
+
+
+def _etf_msg(ticker: str) -> str:
+    return (
+        f"**{ticker}** appears to be an ETF or fund — it files no financial "
+        f"statements with the SEC, so there are no fundamentals to analyze. "
+        f"This analyzer rates operating companies (the home screen already "
+        f"tracks SPY as the market backdrop)."
+    )
+
+
 def _get_ticker(ticker: str, force_refresh: bool = False):
     """
     Returns ((data, result), warning_msg).
@@ -568,10 +598,9 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
                     pass   # Cloud filesystem is read-only — that's fine
             return (data, result), _price_warning(ticker, data)
         except fetcher.UnknownTickerError:
-            return None, (
-                f"**{ticker}** is not a valid ticker — no listed company with that "
-                f"symbol in the SEC registry. Check the spelling (e.g. AAPL, not APPL)."
-            )
+            return None, _unknown_ticker_msg(ticker)
+        except fetcher.NoFundamentalsError:
+            return None, _etf_msg(ticker)
         except Exception as e:
             print(f"FETCH ERROR [force_refresh] {ticker}: {type(e).__name__}: {e}")
             data = _load_file(ticker)
@@ -616,10 +645,13 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
             status_box.update(label=f"{ticker}: not a valid ticker", state="error")
         except Exception:
             pass
-        return None, (
-            f"**{ticker}** is not a valid ticker — no listed company with that "
-            f"symbol in the SEC registry. Check the spelling (e.g. AAPL, not APPL)."
-        )
+        return None, _unknown_ticker_msg(ticker)
+    except fetcher.NoFundamentalsError:
+        try:
+            status_box.update(label=f"{ticker}: ETF / fund — no financial statements", state="error")
+        except Exception:
+            pass
+        return None, _etf_msg(ticker)
     except Exception as e:
         print(f"FETCH ERROR [analyze] {ticker}: {type(e).__name__}: {e}")
         available = '  ·  '.join(AVAILABLE_TICKERS)
