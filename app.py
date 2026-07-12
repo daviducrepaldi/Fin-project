@@ -66,11 +66,13 @@ st.markdown("""
 /* ── App shell ── */
 .stApp { background: var(--bg) !important; color: var(--text); font-family: var(--font); }
 .block-container {
-    padding-top: 0.75rem !important;
+    /* clear Streamlit's 60px fixed header — content under it is invisible */
+    padding-top: 4rem !important;
     padding-bottom: 0.5rem !important;
     background: var(--bg) !important;
     max-width: 100% !important;
 }
+header[data-testid="stHeader"] { background: var(--bg) !important; }
 /* Font inheritance from root — no !important here so that icon spans
    with their own explicit font-family declaration can still override it */
 .stApp { font-family: var(--font); }
@@ -118,7 +120,16 @@ p, li { color: var(--text); line-height: 1.5; font-size: 0.84rem; }
 [data-testid="stSidebar"] div { color: var(--text); }
 [data-testid="stSidebarContent"] { padding: 0.8rem 0.8rem; }
 
-/* Text input */
+/* Text input — style only the input element; kill the BaseWeb wrapper's own
+   border so the box doesn't render doubled */
+[data-testid="stTextInput"] [data-baseweb="input"],
+[data-testid="stTextInput"] [data-baseweb="base-input"] {
+    background: var(--bg) !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+/* "Press Enter to submit form" hint overlaps the typed text — hide it */
+[data-testid="InputInstructions"] { display: none !important; }
 [data-testid="stTextInput"] input {
     background: var(--bg) !important;
     border: 1px solid var(--border) !important;
@@ -137,6 +148,7 @@ p, li { color: var(--text); line-height: 1.5; font-size: 0.84rem; }
 
 /* ── Buttons ── */
 [data-testid="stButton"] > button[kind="primary"],
+[data-testid="stFormSubmitButton"] > button,
 [data-testid="stButton"] > button[data-testid="baseButton-primary"] {
     background: var(--orange) !important;
     color: #000 !important;
@@ -149,7 +161,8 @@ p, li { color: var(--text); line-height: 1.5; font-size: 0.84rem; }
     padding: 0.35rem 0.8rem;
     border-radius: 2px !important;
 }
-[data-testid="stButton"] > button[kind="primary"]:hover { background: #cc5200 !important; }
+[data-testid="stButton"] > button[kind="primary"]:hover,
+[data-testid="stFormSubmitButton"] > button:hover { background: #cc5200 !important; }
 [data-testid="stButton"] > button:not([kind="primary"]) {
     background: transparent !important;
     border: 1px solid var(--border) !important;
@@ -315,6 +328,7 @@ def _chart_theme(**overrides) -> dict:
         plot_bgcolor="#0a0a0a",
         font=dict(family="IBM Plex Mono, 'Courier New', monospace", color="#888888", size=10),
         title=dict(
+            text="",   # explicit empty text — Plotly renders a missing key as "undefined"
             font=dict(family="IBM Plex Mono, 'Courier New', monospace", color="#ff6600", size=12),
             x=0, xanchor="left", pad=dict(l=4),
         ),
@@ -910,7 +924,9 @@ MAX_TICKERS = 5
 # Letters with an optional class suffix (BRK.B / BRK-B). No slashes and no way
 # to form "..", so nothing can escape data/ in the file loader.
 TICKER_RE = re.compile(r'^[A-Z]{1,10}([.-][A-Z]{1,4})?$')
-raw_tokens = [t.strip().upper() for t in tickers_input.split() if t.strip()]
+# split on spaces, commas or semicolons — "AAPL, MSFT" must not silently
+# drop AAPL (the comma made the token fail validation and killed comparison)
+raw_tokens = [t.strip().upper() for t in re.split(r'[,;\s]+', tickers_input) if t.strip()]
 tickers = [t for t in raw_tokens if TICKER_RE.match(t)]
 dropped = [t for t in raw_tokens if not TICKER_RE.match(t)]
 if dropped:
