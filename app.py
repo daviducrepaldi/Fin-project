@@ -534,7 +534,7 @@ def _render_market_backdrop():
                     font=dict(family="IBM Plex Mono, 'Courier New', monospace",
                               color="#888888", size=9)),
     ))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key="backdrop_spy")
     st.caption(
         "End-of-day data. Trend flag compares the last close to the 200-day "
         "moving average — a common risk-on / risk-off proxy."
@@ -793,7 +793,7 @@ def _render_price_action(ticker: str, prices: list, market: dict, tech: dict):
     )
     theme["xaxis"]["rangeslider"] = dict(visible=False)
     fig.update_layout(**theme)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key=f"px_{ticker}")
 
     vols = [p.get("volume") for p in prices]
     if any(v is not None for v in vols):
@@ -808,7 +808,7 @@ def _render_price_action(ticker: str, prices: list, market: dict, tech: dict):
             title="VOLUME", height=140,
             margin=dict(t=24, b=8, l=4, r=4), showlegend=False,
         ))
-        st.plotly_chart(vfig, use_container_width=True)
+        st.plotly_chart(vfig, use_container_width=True, key=f"vol_{ticker}")
 
 
 def _render_relative_performance(ticker: str, prices: list, data: dict):
@@ -847,7 +847,7 @@ def _render_relative_performance(ticker: str, prices: list, data: dict):
                     font=dict(family="IBM Plex Mono, 'Courier New', monospace",
                               color="#888888", size=9)),
     ))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key=f"relperf_{ticker}")
     if etf_sym:
         st.caption(
             f"Sector proxy: {etf_sym} (SPDR {sector.replace('_', ' ')} fund). "
@@ -1180,7 +1180,7 @@ if not active_tickers:
             showlegend=False,
         ))
         with col:
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key=f"ghost_{label}")
 
     st.stop()
 
@@ -1364,7 +1364,7 @@ for tab_idx, ticker in enumerate(all_results.keys()):
                                 font=dict(family="IBM Plex Mono, 'Courier New', monospace", color="#888888", size=9)),
                     margin=dict(t=36, b=48, l=4, r=4),
                 ))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key=f"revni_{ticker}")
 
             with col_r:
                 fig = go.Figure()
@@ -1386,7 +1386,7 @@ for tab_idx, ticker in enumerate(all_results.keys()):
                                 font=dict(family="IBM Plex Mono, 'Courier New', monospace", color="#888888", size=9)),
                     margin=dict(t=36, b=48, l=4, r=4),
                 ))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key=f"margins_{ticker}")
 
             # ── charts row 2: FCF + Liquidity/Leverage ─────────────────
             col_l2, col_r2 = st.columns(2)
@@ -1407,7 +1407,7 @@ for tab_idx, ticker in enumerate(all_results.keys()):
                     height=340,
                     margin=dict(t=36, b=48, l=4, r=4),
                 ))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key=f"fcf_{ticker}")
 
             with col_r2:
                 fig = go.Figure()
@@ -1428,7 +1428,7 @@ for tab_idx, ticker in enumerate(all_results.keys()):
                                 font=dict(family="IBM Plex Mono, 'Courier New', monospace", color="#888888", size=9)),
                     margin=dict(t=36, b=48, l=4, r=4),
                 ))
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key=f"liq_{ticker}")
 
             # ── TTM summary ────────────────────────────────────────────
             st.divider()
@@ -1564,13 +1564,13 @@ if len(comparable_tickers) > 1:
 
         vc1, vc2, vc3 = st.columns(3)
         figs = [
-            _comp_bar("pe_trailing",    "P/E (TTM)",    "market", _fmt_x),
-            _comp_bar("ev_ebitda_info", "EV/EBITDA",   "market", _fmt_x),
-            _comp_bar("pb_ratio",       "P/B",          "market", _fmt_x),
+            ("comp_pe",       _comp_bar("pe_trailing",    "P/E (TTM)",    "market", _fmt_x)),
+            ("comp_evebitda", _comp_bar("ev_ebitda_info", "EV/EBITDA",   "market", _fmt_x)),
+            ("comp_pb",       _comp_bar("pb_ratio",       "P/B",          "market", _fmt_x)),
         ]
-        for col, fig in zip([vc1, vc2, vc3], figs):
+        for col, (fig_key, fig) in zip([vc1, vc2, vc3], figs):
             if fig:
-                col.plotly_chart(fig, use_container_width=True)
+                col.plotly_chart(fig, use_container_width=True, key=fig_key)
 
         # ── margin comparison ──────────────────────────────────────
         _section_header("PROFITABILITY (TTM %)")
@@ -1599,7 +1599,7 @@ if len(comparable_tickers) > 1:
                         font=dict(family="IBM Plex Mono, 'Courier New', monospace", color="#888888", size=9)),
             margin=dict(t=36, b=40, l=4, r=4),
         ))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="comp_profit")
 
         # ── scale comparison ───────────────────────────────────────
         _section_header("SCALE (TTM, $B)")
@@ -1625,7 +1625,7 @@ if len(comparable_tickers) > 1:
                         font=dict(family="IBM Plex Mono, 'Courier New', monospace", color="#888888", size=9)),
             margin=dict(t=36, b=40, l=4, r=4),
         ))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="comp_scale")
 
         # ── summary table ──────────────────────────────────────────
         _section_header("FULL COMPARISON TABLE")
