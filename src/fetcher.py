@@ -898,6 +898,39 @@ def fetch_only(ticker: str, _retries: int = 3, status_callback=None) -> dict:
                   delay_base=_RETRY_DELAY_BASE, status_callback=status_callback)
 
 
+def _fund_data(ticker: str, prices: list, price, week52_high, week52_low,
+               dividend_yield, beta) -> dict:
+    """Assemble the minimal data dict for a price-only ETF/fund view."""
+    name = ticker
+    try:
+        cik = _get_cik(ticker)
+        name = (_get_edgar_meta(cik).get("name") or ticker).title()
+    except Exception:
+        pass   # many ETFs aren't SEC-registered — the symbol is name enough
+
+    return {
+        "company": {
+            "ticker": ticker,
+            "name": name,
+            "security_type": "fund",
+            "sector": "", "industry": "", "sic": "", "currency": "USD",
+            "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        },
+        "market": {
+            "price":          price,
+            "week52_high":    week52_high,
+            "week52_low":     week52_low,
+            "dividend_yield": dividend_yield,
+            "beta":           beta,
+            "market_cap":     None,
+        },
+        "income": [], "balance": [], "cashflow": [],
+        "prices":  prices,
+        "filings": [], "insider": [],
+        "price_data_error": None,
+    }
+
+
 def fetch_prices_only(ticker: str) -> dict:
     """
     Minimal data dict for ETFs / funds: Tiingo prices + best-effort EDGAR
@@ -912,39 +945,26 @@ def fetch_prices_only(ticker: str) -> dict:
             raise UnknownTickerError(f"{ticker}: not on Tiingo either")
         raise
 
-    name = ticker
-    try:
-        cik = _get_cik(ticker)
-        name = (_get_edgar_meta(cik).get("name") or ticker).title()
-    except Exception:
-        pass   # many ETFs aren't SEC-registered — the symbol is name enough
-
     price = tiingo["price"]
     div_yield = None
     if tiingo.get("annual_dividend") and price:
         div_yield = round(tiingo["annual_dividend"] / price * 100, 2)
 
-    return {
-        "company": {
-            "ticker": ticker,
-            "name": name,
-            "security_type": "fund",
-            "sector": "", "industry": "", "sic": "", "currency": "USD",
-            "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        },
-        "market": {
-            "price":          price,
-            "week52_high":    tiingo["week52_high"],
-            "week52_low":     tiingo["week52_low"],
-            "dividend_yield": div_yield,
-            "beta":           tiingo["beta"],
-            "market_cap":     None,
-        },
-        "income": [], "balance": [], "cashflow": [],
-        "prices":  tiingo["prices"],
-        "filings": [], "insider": [],
-        "price_data_error": None,
-    }
+    return _fund_data(ticker, tiingo["prices"], price,
+                      tiingo["week52_high"], tiingo["week52_low"],
+                      div_yield, tiingo["beta"])
+
+
+def fund_data_from_series(ticker: str, series: list) -> dict:
+    """
+    Degraded fund dict built from a stored daily series (data/_macro_*.json)
+    when the live price API is rate-limited. No dividend yield or beta.
+    """
+    closes = [p["close"] for p in series if p.get("close") is not None]
+    if not closes:
+        raise RuntimeError(f"{ticker}: stored series has no closes")
+    return _fund_data(ticker.upper(), series, closes[-1],
+                      max(closes), min(closes), None, None)
 
 
 def fetch_and_store(ticker: str, _retries: int = 3) -> dict:

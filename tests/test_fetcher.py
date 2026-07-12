@@ -379,6 +379,26 @@ class TestFetchPricesOnly:
         with pytest.raises(fetcher.UnknownTickerError):
             fetcher.fetch_prices_only("NOPE")
 
+    def test_fund_data_from_stored_series(self, monkeypatch):
+        from src import fetcher
+        monkeypatch.setattr(fetcher, "_get_cik",
+                            lambda t: (_ for _ in ()).throw(fetcher.UnknownTickerError(t)))
+        series = [{"date": f"2026-01-{d:02d}", "close": float(c)}
+                  for d, c in [(2, 95), (3, 110), (4, 100)]]
+        data = fetcher.fund_data_from_series("spy", series)
+        assert data["company"]["ticker"] == "SPY"
+        assert data["market"]["price"] == 100.0        # last close
+        assert data["market"]["week52_high"] == 110.0
+        assert data["market"]["week52_low"] == 95.0
+        assert data["market"]["dividend_yield"] is None
+        assert data["prices"] == series
+
+    def test_fund_data_from_empty_series_raises(self):
+        import pytest
+        from src import fetcher
+        with pytest.raises(RuntimeError):
+            fetcher.fund_data_from_series("SPY", [{"date": "2026-01-02", "close": None}])
+
     def test_other_tiingo_errors_propagate(self, monkeypatch):
         import requests
         import pytest

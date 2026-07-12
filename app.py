@@ -561,9 +561,23 @@ def _fail_hint(exc) -> str:
     return ""
 
 
+# symbols whose daily series ships with the repo (data/_macro_*.json)
+_FUND_FALLBACK_SYMBOLS = {macro.MARKET_BENCHMARK, *macro.SECTOR_ETFS.values()}
+
+
 def _fund_pair(ticker: str):
     """(data, result) for a price-only ETF/fund view. Raises on failure."""
-    data = fetcher.fetch_prices_only(ticker)
+    try:
+        data = fetcher.fetch_prices_only(ticker)
+    except fetcher.UnknownTickerError:
+        raise
+    except Exception:
+        # price API down / rate-limited — SPY + sector ETFs have a stored
+        # series in the repo, so those still get a (slightly stale) view
+        series = _get_macro_prices(ticker) if ticker in _FUND_FALLBACK_SYMBOLS else None
+        if not series:
+            raise
+        data = fetcher.fund_data_from_series(ticker, series)
     result = {"company": data["company"], "market": data["market"],
               "ttm": {}, "quarters": [], "trends": [], "fund": True}
     return data, result
@@ -573,6 +587,14 @@ def _fund_note(ticker: str) -> str:
     return (
         f"**{ticker}** is an ETF / fund — showing price analysis only "
         f"(funds file no financial statements to rate)."
+    )
+
+
+def _probe_rate_limited_msg(ticker: str) -> str:
+    return (
+        f"**{ticker}** isn't an SEC-registered company, and the price API is "
+        f"rate-limited right now (free tier, hourly quota), so it can't be "
+        f"checked as an ETF. Wait a bit and try again."
     )
 
 
@@ -625,7 +647,9 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
             # not an SEC-registered company — but Tiingo knows most ETFs
             try:
                 pair = _fund_pair(ticker)
-            except Exception:
+            except Exception as probe_exc:
+                if "429" in str(probe_exc):
+                    return None, _probe_rate_limited_msg(ticker)
                 return None, _unknown_ticker_msg(ticker)
             cache[ticker] = pair
             return pair, _fund_note(ticker)
@@ -680,11 +704,13 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
         # not an SEC-registered company — but Tiingo knows most ETFs
         try:
             pair = _fund_pair(ticker)
-        except Exception:
+        except Exception as probe_exc:
             try:
                 status_box.update(label=f"{ticker}: not a valid ticker", state="error")
             except Exception:
                 pass
+            if "429" in str(probe_exc):
+                return None, _probe_rate_limited_msg(ticker)
             return None, _unknown_ticker_msg(ticker)
         try:
             status_box.update(label=f"{ticker}: ETF / fund — price data loaded", state="complete")
