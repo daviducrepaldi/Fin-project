@@ -913,6 +913,11 @@ def _render_market_intel(ticker: str, data: dict, result: dict):
             "Simplified model — compares levered FCF to equity value, ignores net debt and dilution. "
             "Not financial advice."
         )
+    elif classify_sector(data.get("company") or {}) == "financials":
+        st.info(
+            "Reverse DCF skipped — free cash flow doesn't capture the economics "
+            "of banks and financials, so implied-growth math on it would mislead."
+        )
     else:
         st.info("Reverse DCF unavailable — needs positive TTM free cash flow and a market cap.")
 
@@ -1392,22 +1397,33 @@ for tab_idx, ticker in enumerate(all_results.keys()):
             col_l2, col_r2 = st.columns(2)
 
             with col_l2:
-                fig = go.Figure()
                 if df["free_cash_flow"].notna().any():
                     colors = [
                         _C_GREEN if (v or 0) >= 0 else _C_RED
                         for v in df["free_cash_flow"]
                     ]
+                    fig = go.Figure()
                     fig.add_bar(
                         x=df["label"], y=df["free_cash_flow"] / 1e9,
                         name="FCF", marker_color=colors,
                     )
-                fig.update_layout(**_chart_theme(
-                    title="FREE CASH FLOW ($B)",
-                    height=340,
-                    margin=dict(t=36, b=48, l=4, r=4),
-                ))
-                st.plotly_chart(fig, use_container_width=True, key=f"fcf_{ticker}")
+                    fig.update_layout(**_chart_theme(
+                        title="FREE CASH FLOW ($B)",
+                        height=340,
+                        margin=dict(t=36, b=48, l=4, r=4),
+                    ))
+                    st.plotly_chart(fig, use_container_width=True, key=f"fcf_{ticker}")
+                elif classify_sector(company) == "financials":
+                    _section_header("FREE CASH FLOW")
+                    st.info(
+                        "Free cash flow isn't a meaningful metric for banks and "
+                        "financials — lending and deposit-taking are their operating "
+                        "activity, so capex-based FCF isn't comparable. The rating "
+                        "already skips FCF metrics for this sector."
+                    )
+                else:
+                    _section_header("FREE CASH FLOW")
+                    st.info("No free-cash-flow data reported for this ticker.")
 
             with col_r2:
                 fig = go.Figure()
