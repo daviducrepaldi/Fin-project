@@ -181,17 +181,17 @@ p, li { color: var(--text); line-height: 1.5; font-size: 0.84rem; }
 }
 
 /* ── Tabs ──
-   Selectors doubled with BaseWeb data attributes: Streamlit's internal
-   markup changes between versions and unpadded tab labels render
-   concatenated ("FUNDAMENTALSMARKET INTEL"). */
+   Element-agnostic [role="tab"] selectors: Streamlit ≤1.50 renders tabs
+   as BaseWeb <button role="tab">, ≥1.59 as <div data-testid="stTab"
+   role="tab">. Anything narrower misses one version and the unpadded
+   labels render concatenated ("FUNDAMENTALSMARKET INTEL"). */
 [data-testid="stTabs"] [role="tablist"],
 [data-testid="stTabs"] [data-baseweb="tab-list"] {
     background: var(--surface);
     border-bottom: 1px solid var(--border);
-    gap: 0;
+    gap: 0 !important;
 }
-[data-testid="stTabs"] button[role="tab"],
-[data-testid="stTabs"] button[data-baseweb="tab"] {
+[data-testid="stTabs"] [role="tab"] {
     background: transparent !important;
     color: var(--dim);
     font-family: var(--font) !important;
@@ -203,8 +203,17 @@ p, li { color: var(--text); line-height: 1.5; font-size: 0.84rem; }
     padding: 0.4rem 1rem !important;
     margin: 0 !important;
 }
-[data-testid="stTabs"] button[role="tab"]:hover { color: var(--text); }
-[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+/* 1.59+ nests the label in a markdown <p> that has its own font-size */
+[data-testid="stTabs"] [role="tab"] p {
+    font-size: 0.72rem !important;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: inherit;
+    margin: 0;
+}
+[data-testid="stTabs"] [role="tab"]:hover { color: var(--text); }
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
     color: var(--orange) !important;
     border-bottom-color: var(--orange) !important;
     background: transparent !important;
@@ -552,6 +561,21 @@ def _fail_hint(exc) -> str:
     return ""
 
 
+def _fund_pair(ticker: str):
+    """(data, result) for a price-only ETF/fund view. Raises on failure."""
+    data = fetcher.fetch_prices_only(ticker)
+    result = {"company": data["company"], "market": data["market"],
+              "ttm": {}, "quarters": [], "trends": [], "fund": True}
+    return data, result
+
+
+def _fund_note(ticker: str) -> str:
+    return (
+        f"**{ticker}** is an ETF / fund — showing price analysis only "
+        f"(funds file no financial statements to rate)."
+    )
+
+
 def _unknown_ticker_msg(ticker: str) -> str:
     return (
         f"**{ticker}** is not a valid ticker — no listed company with that "
@@ -598,9 +622,21 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
                     pass   # Cloud filesystem is read-only — that's fine
             return (data, result), _price_warning(ticker, data)
         except fetcher.UnknownTickerError:
-            return None, _unknown_ticker_msg(ticker)
+            # not an SEC-registered company — but Tiingo knows most ETFs
+            try:
+                pair = _fund_pair(ticker)
+            except Exception:
+                return None, _unknown_ticker_msg(ticker)
+            cache[ticker] = pair
+            return pair, _fund_note(ticker)
         except fetcher.NoFundamentalsError:
-            return None, _etf_msg(ticker)
+            try:
+                pair = _fund_pair(ticker)
+            except Exception as e:
+                print(f"FETCH ERROR [fund refresh] {ticker}: {type(e).__name__}: {e}")
+                return None, _etf_msg(ticker) + _fail_hint(e)
+            cache[ticker] = pair
+            return pair, _fund_note(ticker)
         except Exception as e:
             print(f"FETCH ERROR [force_refresh] {ticker}: {type(e).__name__}: {e}")
             data = _load_file(ticker)
@@ -641,17 +677,36 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
         cache[ticker] = (data, result)
         return (data, result), _price_warning(ticker, data)
     except fetcher.UnknownTickerError:
+        # not an SEC-registered company — but Tiingo knows most ETFs
         try:
-            status_box.update(label=f"{ticker}: not a valid ticker", state="error")
+            pair = _fund_pair(ticker)
+        except Exception:
+            try:
+                status_box.update(label=f"{ticker}: not a valid ticker", state="error")
+            except Exception:
+                pass
+            return None, _unknown_ticker_msg(ticker)
+        try:
+            status_box.update(label=f"{ticker}: ETF / fund — price data loaded", state="complete")
         except Exception:
             pass
-        return None, _unknown_ticker_msg(ticker)
+        cache[ticker] = pair
+        return pair, _fund_note(ticker)
     except fetcher.NoFundamentalsError:
         try:
-            status_box.update(label=f"{ticker}: ETF / fund — no financial statements", state="error")
+            pair = _fund_pair(ticker)
+        except Exception as e:
+            try:
+                status_box.update(label=f"{ticker}: ETF / fund — no financial statements", state="error")
+            except Exception:
+                pass
+            return None, _etf_msg(ticker) + _fail_hint(e)
+        try:
+            status_box.update(label=f"{ticker}: ETF / fund — price data loaded", state="complete")
         except Exception:
             pass
-        return None, _etf_msg(ticker)
+        cache[ticker] = pair
+        return pair, _fund_note(ticker)
     except Exception as e:
         print(f"FETCH ERROR [analyze] {ticker}: {type(e).__name__}: {e}")
         available = '  ·  '.join(AVAILABLE_TICKERS)
@@ -669,6 +724,67 @@ def _fmt_signed_pct(v):
     return f"{'+' if v >= 0 else ''}{v:.1f}%"
 
 
+def _render_price_action(ticker: str, prices: list, market: dict, tech: dict):
+    """PRICE ACTION section: stat row, candlestick + SMAs, volume bars.
+    Shared by the MARKET INTEL sub-tab and the price-only fund view."""
+    _section_header("PRICE ACTION — 1Y DAILY")
+
+    dist_high = None
+    if market.get("price") and market.get("week52_high"):
+        dist_high = (market["price"] / market["week52_high"] - 1) * 100
+
+    s1, s2, s3, s4, s5, s6, s7 = st.columns(7)
+    s1.metric("1M Return",  _fmt_signed_pct(tech["return_1m"]))
+    s2.metric("3M Return",  _fmt_signed_pct(tech["return_3m"]))
+    s3.metric("6M Return",  _fmt_signed_pct(tech["return_6m"]))
+    s4.metric("1Y Return",  _fmt_signed_pct(tech["return_1y"]))
+    s5.metric("Ann. Vol",   _fmt_pct(tech["ann_vol_pct"]))
+    s6.metric("Max Drawdown", _fmt_signed_pct(tech["max_drawdown_pct"]))
+    s7.metric("vs 52W High", _fmt_signed_pct(dist_high))
+
+    fig = go.Figure()
+    fig.add_candlestick(
+        x=[p["date"] for p in prices],
+        open=[p.get("open") for p in prices],
+        high=[p.get("high") for p in prices],
+        low=[p.get("low") for p in prices],
+        close=[p.get("close") for p in prices],
+        name="OHLC",
+        increasing_line_color=_C_GREEN, decreasing_line_color=_C_RED,
+        increasing_fillcolor=_C_GREEN, decreasing_fillcolor=_C_RED,
+    )
+    fig.add_scatter(x=tech["dates"], y=tech["sma50"], name="SMA 50",
+                    mode="lines", line=dict(color=_C_AMBER, width=1.4))
+    fig.add_scatter(x=tech["dates"], y=tech["sma200"], name="SMA 200",
+                    mode="lines", line=dict(color=_C_BLUE, width=1.4))
+    theme = _chart_theme(
+        title=f"{html.escape(ticker)} — DAILY (ADJUSTED)",
+        height=420,
+        legend=dict(orientation="h", y=1.06, x=1, xanchor="right",
+                    bgcolor="rgba(0,0,0,0)",
+                    font=dict(family="IBM Plex Mono, 'Courier New', monospace",
+                              color="#888888", size=9)),
+    )
+    theme["xaxis"]["rangeslider"] = dict(visible=False)
+    fig.update_layout(**theme)
+    st.plotly_chart(fig, use_container_width=True)
+
+    vols = [p.get("volume") for p in prices]
+    if any(v is not None for v in vols):
+        vfig = go.Figure(go.Bar(
+            x=[p["date"] for p in prices], y=vols, name="Volume",
+            marker_color=[
+                _C_GREEN if (p.get("close") or 0) >= (p.get("open") or 0) else _C_RED
+                for p in prices
+            ],
+        ))
+        vfig.update_layout(**_chart_theme(
+            title="VOLUME", height=140,
+            margin=dict(t=24, b=8, l=4, r=4), showlegend=False,
+        ))
+        st.plotly_chart(vfig, use_container_width=True)
+
+
 def _render_relative_performance(ticker: str, prices: list, data: dict):
     """Stock vs its sector SPDR fund vs SPY over 6 months, rebased to 100."""
     sector = classify_sector(data.get("company") or {})
@@ -680,7 +796,7 @@ def _render_relative_performance(ticker: str, prices: list, data: dict):
         if etf:
             series.append((etf_sym, etf, _C_PURPLE))
     spy = _get_macro_prices(macro.MARKET_BENCHMARK)
-    if spy:
+    if spy and ticker != macro.MARKET_BENCHMARK:
         series.append((macro.MARKET_BENCHMARK, spy, _C_BLUE))
     if len(series) < 2:
         return   # no benchmark data available — nothing to compare against
@@ -735,66 +851,7 @@ def _render_market_intel(ticker: str, data: dict, result: dict):
     # ── price action ──────────────────────────────────────────────
     tech = technicals.compute_technicals(prices) if prices else None
     if tech:
-        _section_header("PRICE ACTION — 1Y DAILY")
-
-        dist_high = None
-        if market.get("price") and market.get("week52_high"):
-            dist_high = (market["price"] / market["week52_high"] - 1) * 100
-
-        s1, s2, s3, s4, s5, s6, s7 = st.columns(7)
-        s1.metric("1M Return",  _fmt_signed_pct(tech["return_1m"]))
-        s2.metric("3M Return",  _fmt_signed_pct(tech["return_3m"]))
-        s3.metric("6M Return",  _fmt_signed_pct(tech["return_6m"]))
-        s4.metric("1Y Return",  _fmt_signed_pct(tech["return_1y"]))
-        s5.metric("Ann. Vol",   _fmt_pct(tech["ann_vol_pct"]))
-        s6.metric("Max Drawdown", _fmt_signed_pct(tech["max_drawdown_pct"]))
-        s7.metric("vs 52W High", _fmt_signed_pct(dist_high))
-
-        fig = go.Figure()
-        fig.add_candlestick(
-            x=[p["date"] for p in prices],
-            open=[p.get("open") for p in prices],
-            high=[p.get("high") for p in prices],
-            low=[p.get("low") for p in prices],
-            close=[p.get("close") for p in prices],
-            name="OHLC",
-            increasing_line_color=_C_GREEN, decreasing_line_color=_C_RED,
-            increasing_fillcolor=_C_GREEN, decreasing_fillcolor=_C_RED,
-        )
-        fig.add_scatter(x=tech["dates"], y=tech["sma50"], name="SMA 50",
-                        mode="lines", line=dict(color=_C_AMBER, width=1.4))
-        fig.add_scatter(x=tech["dates"], y=tech["sma200"], name="SMA 200",
-                        mode="lines", line=dict(color=_C_BLUE, width=1.4))
-        theme = _chart_theme(
-            title=f"{html.escape(ticker)} — DAILY (ADJUSTED)",
-            height=420,
-            legend=dict(orientation="h", y=1.06, x=1, xanchor="right",
-                        bgcolor="rgba(0,0,0,0)",
-                        font=dict(family="IBM Plex Mono, 'Courier New', monospace",
-                                  color="#888888", size=9)),
-        )
-        theme["xaxis"]["rangeslider"] = dict(visible=False)
-        fig.update_layout(**theme)
-        st.plotly_chart(fig, use_container_width=True)
-
-        vols = [p.get("volume") for p in prices]
-        if any(v is not None for v in vols):
-            vfig = go.Figure(go.Bar(
-                x=[p["date"] for p in prices], y=vols, name="Volume",
-                marker_color=[
-                    _C_GREEN if (p.get("close") or 0) >= (p.get("open") or 0) else _C_RED
-                    for p in prices
-                ],
-            ))
-            vfig.update_layout(**_chart_theme(
-                title="VOLUME", height=140,
-                margin=dict(t=24, b=8, l=4, r=4), showlegend=False,
-            ))
-            st.plotly_chart(vfig, use_container_width=True)
-
-    # ── relative performance vs sector & market ──────────────────
-    if tech:
-        _render_relative_performance(ticker, prices, data)
+        _render_price_action(ticker, prices, market, tech)
 
     # ── reverse DCF ───────────────────────────────────────────────
     _section_header("IMPLIED EXPECTATIONS (REVERSE DCF)")
@@ -894,6 +951,11 @@ def _render_market_intel(ticker: str, data: dict, result: dict):
         )
 
     # ── news ──────────────────────────────────────────────────────
+    _render_news(ticker)
+
+
+def _render_news(ticker: str):
+    """NEWS section (keyless RSS). Shared by MARKET INTEL and fund view."""
     _section_header("NEWS")
     news = _get_news(ticker)
     if news:
@@ -914,11 +976,54 @@ def _render_market_intel(ticker: str, data: dict, result: dict):
         )
         st.caption(
             "Headlines from free public RSS feeds (Yahoo Finance / Google News) — "
-            "press coverage, not vetted. Cross-check against the filings feed above: "
-            "8-Ks are what the company legally disclosed."
+            "press coverage, not vetted. Cross-check against official filings "
+            "where available."
         )
     else:
         st.info("No recent headlines found — news feeds may be unreachable right now.")
+
+
+def _render_fund_view(ticker: str, data: dict, result: dict):
+    """Price-only view for ETFs / funds: snapshot, technicals, relative
+    performance and news. No fundamentals, no rating."""
+    company = result.get("company") or {}
+    market  = result.get("market") or {}
+    prices  = data.get("prices") or []
+
+    s_ticker = html.escape(ticker)
+    s_name   = html.escape(company.get("name", ticker))
+    st.markdown(
+        f'<div style="font-family:\'IBM Plex Mono\',monospace;">'
+        f'<span style="color:#ff6600;font-size:1.05rem;font-weight:600;'
+        f'letter-spacing:0.06em;text-transform:uppercase;">{s_ticker}</span>'
+        f'<span style="color:#888;font-size:0.82rem;margin-left:0.6rem;">— {s_name}</span>'
+        f'<span style="color:#4d9de0;font-size:0.68rem;margin-left:0.8rem;'
+        f'letter-spacing:0.08em;">ETF / FUND — PRICE ANALYSIS ONLY</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Funds file no financial statements, so there are no fundamentals to "
+        "rate — this view covers price behaviour only."
+    )
+
+    c1, c2, c3, c4, c5 = st.columns(5)
+    c1.metric("Price",     f"${market.get('price'):,.2f}" if market.get("price") is not None else "N/A")
+    c2.metric("52W High",  f"${market.get('week52_high'):,.2f}" if market.get("week52_high") is not None else "N/A")
+    c3.metric("52W Low",   f"${market.get('week52_low'):,.2f}" if market.get("week52_low") is not None else "N/A")
+    c4.metric("Div Yield", _fmt_pct(market.get("dividend_yield")))
+    c5.metric("Beta",      f"{market.get('beta'):.2f}" if market.get("beta") is not None else "N/A")
+
+    st.divider()
+
+    tech = technicals.compute_technicals(prices) if prices else None
+    if tech:
+        _render_price_action(ticker, prices, market, tech)
+        _render_relative_performance(ticker, prices, data)
+    else:
+        st.info("Not enough price history to chart this fund.")
+
+    _render_news(ticker)
 
 
 # ── sidebar ───────────────────────────────────────────────────────────────────
@@ -1073,9 +1178,11 @@ for i, ticker in enumerate(active_tickers):
 if not all_results:
     st.stop()
 
-# Build tab list: one per ticker + Comparison if >1
+# Build tab list: one per ticker + Comparison when ≥2 rateable companies
+# (ETFs/funds have no fundamentals to compare)
+comparable_tickers = [t for t, r in all_results.items() if not r.get("fund")]
 tab_labels = list(all_results.keys())
-if len(tab_labels) > 1:
+if len(comparable_tickers) > 1:
     tab_labels.append("⚖ COMPARISON")
 
 tabs = st.tabs(tab_labels)
@@ -1086,6 +1193,12 @@ tabs = st.tabs(tab_labels)
 for tab_idx, ticker in enumerate(all_results.keys()):
     with tabs[tab_idx]:
         result   = all_results[ticker]
+
+        # ETFs / funds: price-only view, no fundamentals or rating
+        if result.get("fund"):
+            _render_fund_view(ticker, all_data.get(ticker, {}), result)
+            continue
+
         company  = result["company"]
         market   = result["market"]
         ttm      = result["ttm"]
@@ -1373,9 +1486,13 @@ for tab_idx, ticker in enumerate(all_results.keys()):
 
 # ── comparison tab ────────────────────────────────────────────────────────────
 
-if len(all_results) > 1:
+if len(comparable_tickers) > 1:
     with tabs[-1]:
-        ticker_list = list(all_results.keys())
+        ticker_list = comparable_tickers
+        if len(ticker_list) < len(all_results):
+            excluded = [t for t in all_results if t not in ticker_list]
+            st.caption("ETFs/funds excluded from comparison (no fundamentals): "
+                       + ", ".join(excluded))
         s_ticker_list = " · ".join(html.escape(t) for t in ticker_list)
         st.markdown(
             f'<div style="font-family:\'IBM Plex Mono\',monospace;">'

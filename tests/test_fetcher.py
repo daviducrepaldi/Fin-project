@@ -343,6 +343,56 @@ class TestUnknownTickerFailsFast:
             _retry(fn, "SPY", retries=3, delay_base=0)
         assert calls["n"] == 1
 
+
+class TestFetchPricesOnly:
+    _FAKE_TIINGO = {
+        "price": 100.0, "week52_high": 120.0, "week52_low": 80.0,
+        "annual_dividend": 2.0, "beta": 1.05,
+        "prices": [{"date": "2026-01-02", "open": 99.0, "high": 101.0,
+                    "low": 98.0, "close": 100.0, "volume": 1000}],
+    }
+
+    def test_builds_fund_dict_without_edgar(self, monkeypatch):
+        from src import fetcher
+        monkeypatch.setattr(fetcher, "_get_tiingo_data", lambda t: dict(self._FAKE_TIINGO))
+        monkeypatch.setattr(fetcher, "_get_cik",
+                            lambda t: (_ for _ in ()).throw(fetcher.UnknownTickerError(t)))
+        data = fetcher.fetch_prices_only("QQQ")
+        assert data["company"]["security_type"] == "fund"
+        assert data["company"]["name"] == "QQQ"          # symbol fallback
+        assert data["market"]["dividend_yield"] == 2.0   # 2 / 100 * 100
+        assert data["market"]["market_cap"] is None
+        assert data["prices"] == self._FAKE_TIINGO["prices"]
+        assert data["income"] == [] and data["insider"] == []
+
+    def test_tiingo_404_means_unknown_ticker(self, monkeypatch):
+        import requests
+        import pytest
+        from src import fetcher
+        resp = requests.Response()
+        resp.status_code = 404
+
+        def boom(t):
+            raise requests.HTTPError(response=resp)
+
+        monkeypatch.setattr(fetcher, "_get_tiingo_data", boom)
+        with pytest.raises(fetcher.UnknownTickerError):
+            fetcher.fetch_prices_only("NOPE")
+
+    def test_other_tiingo_errors_propagate(self, monkeypatch):
+        import requests
+        import pytest
+        from src import fetcher
+        resp = requests.Response()
+        resp.status_code = 429
+
+        def boom(t):
+            raise requests.HTTPError(response=resp)
+
+        monkeypatch.setattr(fetcher, "_get_tiingo_data", boom)
+        with pytest.raises(requests.HTTPError):
+            fetcher.fetch_prices_only("SPY")
+
     def test_transient_errors_still_retry(self):
         from src.fetcher import _retry
         calls = {"n": 0}

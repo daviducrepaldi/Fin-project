@@ -898,6 +898,55 @@ def fetch_only(ticker: str, _retries: int = 3, status_callback=None) -> dict:
                   delay_base=_RETRY_DELAY_BASE, status_callback=status_callback)
 
 
+def fetch_prices_only(ticker: str) -> dict:
+    """
+    Minimal data dict for ETFs / funds: Tiingo prices + best-effort EDGAR
+    name, no financial statements. Raises UnknownTickerError when Tiingo
+    doesn't know the symbol either (definitely not a tradable ticker).
+    """
+    ticker = ticker.upper()
+    try:
+        tiingo = _get_tiingo_data(ticker)
+    except requests.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            raise UnknownTickerError(f"{ticker}: not on Tiingo either")
+        raise
+
+    name = ticker
+    try:
+        cik = _get_cik(ticker)
+        name = (_get_edgar_meta(cik).get("name") or ticker).title()
+    except Exception:
+        pass   # many ETFs aren't SEC-registered — the symbol is name enough
+
+    price = tiingo["price"]
+    div_yield = None
+    if tiingo.get("annual_dividend") and price:
+        div_yield = round(tiingo["annual_dividend"] / price * 100, 2)
+
+    return {
+        "company": {
+            "ticker": ticker,
+            "name": name,
+            "security_type": "fund",
+            "sector": "", "industry": "", "sic": "", "currency": "USD",
+            "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        },
+        "market": {
+            "price":          price,
+            "week52_high":    tiingo["week52_high"],
+            "week52_low":     tiingo["week52_low"],
+            "dividend_yield": div_yield,
+            "beta":           tiingo["beta"],
+            "market_cap":     None,
+        },
+        "income": [], "balance": [], "cashflow": [],
+        "prices":  tiingo["prices"],
+        "filings": [], "insider": [],
+        "price_data_error": None,
+    }
+
+
 def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
     """Fetch and persist to SQLite."""
     return _retry(_fetch_and_store, ticker.upper(), _retries, delay_base=8)
@@ -906,8 +955,12 @@ def fetch_and_store(ticker: str, _retries: int = 3) -> dict:
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 def _fetch_raw(ticker: str) -> dict:
-    # ── EDGAR: verify ticker first (free, no rate limit) ─────────────
-    cik = _get_cik(ticker)
+    # ── EDGAR first: verify ticker + fetch statements (free, no rate
+    # limit). Funds raise NoFundamentalsError here, before any Tiingo
+    # quota is spent — the price-only fallback needs that quota.
+    cik          = _get_cik(ticker)
+    edgar_meta   = _get_edgar_meta(cik)
+    facts        = _get_edgar_facts(cik)
 
     # ── Tiingo: price + 52w range ─────────────────────────────────────
     # Degrade gracefully: EDGAR fundamentals are still worth showing when
@@ -921,9 +974,6 @@ def _fetch_raw(ticker: str) -> dict:
                   "annual_dividend": None, "beta": None, "prices": []}
     price = tiingo["price"]
 
-    # ── EDGAR: company meta + XBRL statements ────────────────────────
-    edgar_meta   = _get_edgar_meta(cik)
-    facts        = _get_edgar_facts(cik)
     fact_ns      = facts.get("facts", {})
     ugaap        = fact_ns.get("us-gaap",   {})
     ifrs         = fact_ns.get("ifrs-full", {})
