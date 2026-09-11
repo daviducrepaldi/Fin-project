@@ -11,6 +11,7 @@ At the end of every session, commit and push all uncommitted changes unless the 
 ## Bash / Shell
 
 Avoid interactive CLI tools in Bash. Always use non-interactive flags (e.g., `--yes`, `--default`, `-y`) or pipe expected input. If a tool absolutely requires an interactive terminal, tell the user immediately instead of retrying.
+
 ## Architecture & Gotchas
 
 - **Layout:** `app.py` (Streamlit UI, main interface) and `main.py` (CLI) sit on `src/`: `fetcher` (all Tiingo + SEC EDGAR I/O), `macro` (sector ETFs, RSS news), `analyzer` (ratios/TTM/YoY + `compute_rating`), `technicals` (price stats, reverse DCF), `db` (SQLite `finance.db`, used by the CLI), `display`/`exporter` (CLI output). Keep `analyzer`, `technicals`, `utils` and most of `macro` pure (no I/O) so they stay offline-testable.
