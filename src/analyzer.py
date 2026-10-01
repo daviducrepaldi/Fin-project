@@ -25,6 +25,11 @@ def _parse_period(period_str):
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+def _pos(x):
+    """True when x is a number > 0 (None counts as 'unknown', not positive)."""
+    return x is not None and x > 0
+
+
 def _div(a, b):
     if a is None or b is None or b == 0:
         return None
@@ -139,13 +144,15 @@ def _ratios_for_quarter(inc, bal, cf):
         'fcf_margin':       _pct(_div(fcf, rev)),
         'op_cf_margin':     _pct(_div(op_cf, rev)),
         # Returns (point-in-time equity/assets — TTM version computed separately)
-        'roe':  _pct(_div(ni, equity)),
+        # ROE and D/E are not meaningful on negative equity (buyback-heavy
+        # companies like MCD) — report None so the UI shows N/A, not -859%.
+        'roe':  _pct(_div(ni, equity)) if _pos(equity) else None,
         'roa':  _pct(_div(ni, assets)),
         # Liquidity
         'current_ratio': _round_ratio(cur_a, cur_l),
         'quick_ratio':   _round_ratio(quick_assets, cur_l),
         # Leverage
-        'debt_to_equity':   _round_ratio(debt, equity),
+        'debt_to_equity':   _round_ratio(debt, equity) if _pos(equity) else None,
         'net_debt':         net_debt,
         'interest_coverage': int_cov,
     }
@@ -205,14 +212,17 @@ def _ttm_ratios(income_rows, balance_rows, cashflow_rows, market):
         'fcf_margin':    _pct(_div(ttm_fcf, ttm_rev)),
         'op_cf_margin':  _pct(_div(ttm_opcf, ttm_rev)),
         # Returns (TTM NI / latest balance sheet)
-        'roe': _pct(_div(ttm_ni, equity)),
+        'roe': _pct(_div(ttm_ni, equity)) if _pos(equity) else None,
         'roa': _pct(_div(ttm_ni, assets)),
         # Liquidity (latest quarter)
         'current_ratio': _round_ratio(cur_a, cur_l),
         'quick_ratio':   _round_ratio(quick_assets, cur_l),
         # Leverage (latest quarter)
-        'debt_to_equity':    _round_ratio(debt, equity),
+        'debt_to_equity':    _round_ratio(debt, equity) if _pos(equity) else None,
         'net_debt':          net_debt,
+        'net_debt_ebitda':   (round(net_debt / ttm_ebitda, 2)
+                              if net_debt is not None and ttm_ebitda and ttm_ebitda > 0
+                              else None),
         'interest_coverage': int_cov,
         # Valuation (calculated)
         'ev_ebitda_calc': ev_ebitda_calc,
@@ -387,7 +397,7 @@ def compute_rating(result: dict) -> dict:
       Profitability 25 pts  — Net Margin TTM (10), ROE TTM (10), margin trend (5)
       Growth        20 pts  — Revenue YoY %, averaged over up to 4 recent quarters
                               (a single quarter is too noisy to drive the score)
-      Health        15 pts  — Current Ratio (6), Debt/Equity (6), Interest Coverage (3)
+      Health        15 pts  — Current Ratio (6), Debt/Equity (6; net debt/EBITDA when equity ≤ 0), Interest Coverage (3)
       Momentum      15 pts  — position of price within the 52-week range
 
     Thresholds: score >= 65 → BUY, >= 40 → HOLD, < 40 → SELL
@@ -483,12 +493,19 @@ def compute_rating(result: dict) -> dict:
     cr = ttm.get("current_ratio")
     de = ttm.get("debt_to_equity")
     ic = ttm.get("interest_coverage")
+    nde = ttm.get("net_debt_ebitda")
+    nd = ttm.get("net_debt")
 
     cr_score = de_score = ic_score = None
     if cr is not None:
         cr_score = _score_bracket_high(cr, [(2, 6), (1.5, 4), (1, 2)])  # below 1 → 0
     if de is not None:
         de_score = 0 if de < 0 else _score_bracket(de, [(0.3, 6), (0.8, 4), (1.5, 2), (3.0, 1)])
+    elif nde is not None:
+        # Negative equity (buybacks) makes D/E meaningless → use net debt/EBITDA
+        de_score = _score_bracket(nde, [(1.0, 6), (2.0, 4), (3.5, 2), (5.0, 1)])
+    elif nd is not None and nd > 0:
+        de_score = 0   # net debt but no positive EBITDA to service it
     if ic is not None:
         ic_score = 0 if ic < 0 else _score_bracket_high(ic, [(10, 3), (5, 2), (2, 1)])
 

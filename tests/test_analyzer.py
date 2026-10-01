@@ -504,3 +504,32 @@ class TestMomentum:
         rating = compute_rating(compute_ratios(data))
         assert rating['rating'] in ('BUY', 'HOLD', 'SELL')
         assert rating['data_quality'] == 'partial'
+
+
+# ── negative equity (buyback-heavy companies, e.g. MCD) ──────────────────────
+
+class TestNegativeEquity:
+    def setup_method(self):
+        self.data = _make_data()
+        for b in self.data['balance']:
+            b['equity'] = -1_000_000_000
+        self.result = compute_ratios(self.data)
+
+    def test_roe_and_de_are_none(self):
+        assert self.result['ttm']['roe'] is None
+        assert self.result['ttm']['debt_to_equity'] is None
+        assert self.result['quarters'][0]['roe'] is None
+        assert self.result['quarters'][0]['debt_to_equity'] is None
+
+    def test_net_debt_ebitda_computed(self):
+        # net debt 0.8B / TTM EBITDA (25% of 4.1B revenue)
+        assert self.result['ttm']['net_debt_ebitda'] == round(0.8e9 / (0.25 * 4.1e9), 2)
+
+    def test_rating_uses_net_debt_ebitda_for_health(self):
+        out = compute_rating(self.result)
+        assert out['breakdown']['health']['score'] > 0
+
+    def test_positive_equity_unchanged(self):
+        ok = compute_ratios(_make_data())
+        assert ok['ttm']['roe'] is not None
+        assert ok['ttm']['debt_to_equity'] == 0.2
