@@ -744,11 +744,26 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
 
 # ── macro tab ─────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=3 * 3600, show_spinner=False)
+_ECONOMY_SNAPSHOT = DATA_DIR / '_economy.json'
+
+
+@st.cache_data(ttl=600, show_spinner=False)
 def _get_economy(api_key=None):
-    """FRED series + Fed FOMC calendar (+ release dates when a FRED key is
-    set), shared across sessions for 3h."""
-    return economy.fetch_dashboard(api_key)
+    """
+    Macro dashboard data. Order: fresh committed snapshot (<24h) → live FRED
+    under a hard 12s deadline (persisted back when the disk is writable) →
+    stale snapshot for anything live missed. The 10-minute cache TTL doubles
+    as a negative cache: a FRED outage costs one bounded attempt per 10 min,
+    not one per rerun.
+    """
+    snap = economy.read_snapshot(_ECONOMY_SNAPSHOT)
+    if economy.snapshot_is_fresh(snap):
+        return {**snap, "stale_ids": [], "errors": []}
+    live = economy.fetch_dashboard(api_key)
+    result = economy.merge_with_snapshot(live, snap)
+    if not live["errors"]:
+        economy.write_snapshot(_ECONOMY_SNAPSHOT, live)
+    return result
 
 
 def _fred_key():
@@ -787,15 +802,12 @@ def _render_macro_tab(show_title: bool = True):
         )
     with st.spinner("Loading macro indicators…"):
         data = _get_economy(_fred_key())
-    if not data["indicators"] or data["errors"]:
-        _get_economy.clear()   # never serve a failed/partial fetch for 3h
-
     rows = data["indicators"]
     if not rows:
         st.info("Macro data is unreachable right now (FRED). Reload the page to retry.")
         return
 
-    fomc = data.get("fomc")
+    fomc = economy.next_fomc(data.get("fomc_dates") or [])
     if fomc:
         d = datetime.strptime(fomc["decision_date"], "%Y-%m-%d")
         when = "today" if fomc["days_away"] == 0 else f"in {fomc['days_away']} days"
@@ -833,8 +845,9 @@ def _render_macro_tab(show_title: bool = True):
                 if r.get("next_release"):
                     nd = datetime.strptime(r["next_release"], "%Y-%m-%d")
                     days = (nd.date() - datetime.now().date()).days
-                    col.caption(f"Next: {nd.strftime('%b %d')} · "
-                                f"{'today' if days == 0 else f'in {days}d'}")
+                    if days >= 0:
+                        col.caption(f"Next: {nd.strftime('%b %d')} · "
+                                    f"{'today' if days == 0 else f'in {days}d'}")
 
     st.caption(
         "Data: FRED public series + federalreserve.gov. 'Leading' indicators tend to "
@@ -842,6 +855,11 @@ def _render_macro_tab(show_title: bool = True):
         + ("" if _fred_key() else
            " Next-release dates need a FRED_API_KEY (.env or Streamlit secrets).")
     )
+    if data.get("stale_ids"):
+        st.caption(
+            f"Live FRED data was unavailable for {len(data['stale_ids'])} indicator(s); "
+            f"showing the saved snapshot from {data.get('snapshot_at', 'earlier')}."
+        )
     if data["errors"]:
         st.caption(f"Unavailable right now: {', '.join(data['errors'])}")
 

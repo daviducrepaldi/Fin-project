@@ -66,6 +66,22 @@ def main():
                 print(f"FAILED: {e}")
                 failed.append(sym)
 
+    if not args.skip_macro:
+        # Economic indicators snapshot — the deployed app falls back to this
+        # when FRED is slow/unreachable from Streamlit Cloud.
+        from src import economy
+        print("[economy] Fetching macro indicators...", end=' ', flush=True)
+        dash = economy.fetch_dashboard(economy.get_api_key())
+        if dash["errors"]:
+            print(f"INCOMPLETE (missing: {', '.join(dash['errors'])}) — snapshot not written")
+            failed.append('economy')
+        elif economy.write_snapshot(DATA_DIR / '_economy.json', dash):
+            print(f"saved → _economy.json ({len(dash['indicators'])} indicators)")
+            ok.append('economy')
+        else:
+            print("FAILED: could not write file")
+            failed.append('economy')
+
     if args.macro_only:
         print(f"\nDone. {len(ok)} succeeded, {len(failed)} failed.")
         sys.exit(1 if failed else 0)

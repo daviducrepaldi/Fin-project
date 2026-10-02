@@ -107,3 +107,66 @@ class TestReleaseDates:
         assert out["CPIAUCSL"] == "2026-10-14"
         assert out["PAYEMS"] == out["UNRATE"] == "2026-10-02"
         assert "GDP" not in out and "HOUST" not in out   # unresolved releases omitted
+
+
+class TestParseFredJson:
+    def test_parses_and_drops_dots(self):
+        payload = {"observations": [{"date": "2026-02-01", "value": "2"},
+                                    {"date": "2026-01-01", "value": "."},
+                                    {"date": "2026-01-02", "value": "1.5"}]}
+        assert economy.parse_fred_json(payload) == [("2026-01-02", 1.5), ("2026-02-01", 2.0)]
+
+    def test_garbage(self):
+        assert economy.parse_fred_json({}) == []
+        assert economy.parse_fred_json({"observations": [{"x": 1}]}) == []
+
+
+class TestDeadline:
+    def test_dashboard_returns_within_deadline_when_fred_hangs(self, monkeypatch):
+        import time
+        monkeypatch.setattr(economy, "fetch_series", lambda *a, **k: time.sleep(3) or [])
+        monkeypatch.setattr(economy, "fetch_fomc_dates", lambda: time.sleep(3) or [])
+        t = time.time()
+        d = economy.fetch_dashboard(None, deadline=0.4)
+        assert time.time() - t < 2
+        assert d["indicators"] == []
+        assert len(d["errors"]) == len(economy.INDICATORS)
+
+
+class TestSnapshot:
+    def _live(self, ids):
+        rows = [{"id": i[0], "label": i[1], "group": i[2]} for i in economy.INDICATORS if i[0] in ids]
+        return {"indicators": rows, "fomc_dates": [], "errors": [], "fetched_at": "2026-10-01T10:00:00"}
+
+    def test_merge_fills_missing_from_snapshot_in_order(self):
+        snap = self._live({i[0] for i in economy.INDICATORS})
+        snap["fomc_dates"] = ["2026-10-28"]
+        live = self._live({"UNRATE"})
+        m = economy.merge_with_snapshot(live, snap)
+        assert [r["id"] for r in m["indicators"]] == [i[0] for i in economy.INDICATORS]
+        assert "UNRATE" not in m["stale_ids"] and len(m["stale_ids"]) == len(economy.INDICATORS) - 1
+        assert m["fomc_dates"] == ["2026-10-28"] and m["errors"] == []
+
+    def test_merge_without_snapshot_keeps_errors(self):
+        live = self._live({"UNRATE"})
+        live["errors"] = ["CPIAUCSL"]
+        m = economy.merge_with_snapshot(live, None)
+        assert m["stale_ids"] == [] and m["errors"] == ["CPIAUCSL"]
+
+    def test_roundtrip_and_freshness(self, tmp_path):
+        from datetime import datetime
+        dash = self._live({"UNRATE"})
+        dash["fetched_at"] = datetime.now().isoformat(timespec="seconds")
+        path = tmp_path / "_economy.json"
+        assert economy.write_snapshot(path, dash)
+        snap = economy.read_snapshot(path)
+        assert snap["indicators"][0]["id"] == "UNRATE"
+        assert economy.snapshot_is_fresh(snap)
+        assert not economy.snapshot_is_fresh({"fetched_at": "2020-01-01T00:00:00"})
+        assert not economy.snapshot_is_fresh(None)
+
+    def test_read_missing_or_bad(self, tmp_path):
+        assert economy.read_snapshot(tmp_path / "nope.json") is None
+        bad = tmp_path / "bad.json"
+        bad.write_text("{not json")
+        assert economy.read_snapshot(bad) is None
