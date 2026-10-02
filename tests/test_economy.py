@@ -192,3 +192,36 @@ class TestAssess:
 
     def test_every_indicator_has_a_benchmark(self):
         assert {i[0] for i in economy.INDICATORS} == set(economy.BENCHMARKS)
+
+
+_PRN_HTML = '''
+<a href="/news-releases/manufacturing-pmi-at-54-5-september-2026-ism-manufacturing-pmi-report-302894520.html">x</a>
+<a href="/news-releases/manufacturing-pmi-at-54-may-2026-ism-manufacturing-pmi-report-302786165.html">x</a>
+<a href="/news-releases/manufacturing-pmi-at-47-9-december-2025-ism-manufacturing-pmi-report-302649307.html">x</a>
+<a href="/news-releases/services-pmi-at-50-1-september-2026-ism-services-pmi-report-1.html">x</a>
+<a href="/news-releases/manufacturing-pmi-at-54-5-september-2026-ism-manufacturing-pmi-report-302894520.html">dup</a>
+'''
+
+
+class TestIsm:
+    def test_parse_slugs(self):
+        assert economy.parse_ism_pmi(_PRN_HTML) == [
+            ("2025-12-01", 47.9), ("2026-05-01", 54.0), ("2026-09-01", 54.5)]
+
+    def test_parse_empty(self):
+        assert economy.parse_ism_pmi("") == []
+
+    def test_next_release_first_business_day(self):
+        assert economy.next_ism_release(date(2026, 9, 20)) == "2026-10-01"
+        assert economy.next_ism_release(date(2026, 10, 2)) == "2026-11-02"   # Nov 1 is Sunday
+        assert economy.next_ism_release(date(2026, 12, 15)) == "2027-01-04"  # Jan 1 Fri holiday, 2-3 weekend
+
+    def test_next_release_skips_labor_day(self):
+        assert economy.next_ism_release(date(2027, 8, 20)) == "2027-09-01"   # Wed
+        assert economy.next_ism_release(date(2026, 8, 20)) == "2026-09-01"   # Tue (Sep 1 2026 is Tuesday)
+        assert economy.next_ism_release(date(2025, 8, 20)) == "2025-09-02"   # Sep 1 2025 = Labor Day
+
+    def test_next_release_advances_once_month_is_published(self):
+        # Oct 1: the September report is already in hand → next is November
+        assert economy.next_ism_release(date(2026, 10, 1), latest="2026-09-01") == "2026-11-02"
+        assert economy.next_ism_release(date(2026, 10, 1), latest="2026-08-01") == "2026-10-01"

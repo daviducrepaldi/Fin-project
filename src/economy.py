@@ -22,6 +22,11 @@ _FOMC_URL = "https://www.federalreserve.gov/monetaryPolicy/fomccalendars.htm"
 _HEADERS  = {"User-Agent": "Mozilla/5.0 (FinancialAnalyzerApp)"}
 _LOOKBACK_DAYS = 800   # enough for a YoY figure plus the prior month's YoY
 
+# ISM isn't on FRED (licence withdrawn) and ismworld.org sits behind a bot
+# check, so its monthly reading comes from ISM's own press release on PR
+# Newswire — see fetch_ism_pmi. Its id is not a FRED series id.
+ISM_ID = "ISM_PMI"
+
 # kind decides how the headline number is derived from the raw series:
 #   level → latest value            yoy → % change vs 12 obs earlier
 #   diff  → change vs prior obs     mom → % change vs prior obs
@@ -41,6 +46,7 @@ INDICATORS = [
     ("RSAFS",             "Retail Sales (MoM)",     "Growth",    "Coincident", "mom",   "%",  "monthly"),
     ("HOUST",             "Housing Starts",         "Growth",    "Leading",    "level", "K",  "monthly"),
     ("PERMIT",            "Building Permits",       "Growth",    "Leading",    "level", "K",  "monthly"),
+    (ISM_ID,              "ISM Manufacturing PMI",  "Growth",    "Leading",    "level", "",   "monthly"),
     ("GACDFSA066MSFRBPHI", "Philly Fed Mfg Index",  "Growth",    "Leading",    "level", "",   "monthly"),
 ]
 # Rule-of-thumb "what's a good number" per indicator: a one-line reading guide
@@ -63,6 +69,7 @@ BENCHMARKS = {
     "RSAFS": {"text": "+0.3% or more per month = solid. Negative = consumers pulling back", "kind": "high", "good": 0.3, "watch": 0.0},
     "HOUST": {"text": "~1.3M/yr = healthy. Below 1.1M = weak housing", "kind": "high", "good": 1300, "watch": 1100},
     "PERMIT": {"text": "Leads starts. ~1.3M/yr = healthy. Below 1.1M = weak", "kind": "high", "good": 1300, "watch": 1100},
+    ISM_ID: {"text": "Above 50 = manufacturing expanding, below 50 = contracting. ~47.5 is the break-even for the overall economy", "kind": "high", "good": 50.0, "watch": 47.5},
     "GACDFSA066MSFRBPHI": {"text": "Above 0 = manufacturing expanding, below 0 = shrinking (like ISM's 50 line)", "kind": "high", "good": 5, "watch": -5},
 }
 
@@ -208,6 +215,69 @@ def get_api_key() -> Optional[str]:
     return os.environ.get("FRED_API_KEY") or None
 
 
+# ── ISM manufacturing PMI (via PR Newswire press releases) ───────────────────
+
+_PRN_SEARCH = ("https://www.prnewswire.com/search/news/"
+               "?keyword=ISM%20Manufacturing%20PMI%20Report&pagesize=25")
+_MONTHS = {m: i for i, m in enumerate(
+    ["january", "february", "march", "april", "may", "june", "july",
+     "august", "september", "october", "november", "december"], 1)}
+# e.g. /news-releases/manufacturing-pmi-at-54-5-september-2026-ism-...
+#      /news-releases/manufacturing-pmi-at-54-may-2026-ism-...   (whole number)
+_ISM_SLUG_RE = re.compile(
+    r"/news-releases/manufacturing-pmi-at-(\d{2})(?:-(\d))?-([a-z]+)-(\d{4})-ism-manufacturing-pmi-report")
+
+
+def parse_ism_pmi(html_text: str) -> list:
+    """PR Newswire search page → [('YYYY-MM-01', pmi)] oldest-first. The
+    reading and report month are encoded in each release's URL slug."""
+    out = {}
+    for whole, frac, month, year in _ISM_SLUG_RE.findall(html_text):
+        m = _MONTHS.get(month)
+        if not m:
+            continue
+        out[f"{year}-{m:02d}-01"] = float(f"{whole}.{frac or 0}")
+    return sorted(out.items())
+
+
+def fetch_ism_pmi() -> list:
+    """Recent ISM Manufacturing PMI readings, [] on failure."""
+    try:
+        r = requests.get(_PRN_SEARCH, headers=_HEADERS, timeout=_TIMEOUT)
+        r.raise_for_status()
+        return parse_ism_pmi(r.text)
+    except requests.RequestException as e:
+        _log(f"ism: {type(e).__name__}")
+        return []
+
+
+def next_ism_release(today: date = None, latest: str = None) -> str:
+    """ISM publishes on the first business day of each month (10:00 ET).
+    Weekends, New Year's Day and Labor Day are skipped; other holidays are
+    not modelled, so treat as 'expected'. `latest` is the newest report
+    month we already hold ('YYYY-MM-DD'): a release in month M reports month
+    M-1, so if we have M-1 already, the next release is the following month's."""
+    today = today or date.today()
+
+    def first_bday(y, m):
+        d = date(y, m, 1)
+        while d.weekday() >= 5 or (m == 1 and d.day == 1) or \
+                (m == 9 and d.weekday() == 0 and d.day <= 7):
+            d += timedelta(days=1)
+        return d
+
+    def following(y, m):
+        return (y + 1, 1) if m == 12 else (y, m + 1)
+
+    y, m = today.year, today.month
+    d = first_bday(y, m)
+    prev_month = f"{y - 1 if m == 1 else y}-{12 if m == 1 else m - 1:02d}"
+    if d < today or (latest and latest[:7] >= prev_month):
+        y, m = following(y, m)
+        d = first_bday(y, m)
+    return d.isoformat()
+
+
 # ── network ──────────────────────────────────────────────────────────────────
 # Everything below runs under a hard overall deadline (DEADLINE_S): a slow or
 # blocked FRED must degrade to "use the snapshot", never to a hung page.
@@ -323,7 +393,9 @@ def fetch_dashboard(api_key: str = None, deadline: float = DEADLINE_S) -> dict:
     """
     today = date.today()
     pool = ThreadPoolExecutor(max_workers=8)
-    series_f = {ind[0]: pool.submit(fetch_series, ind[0], api_key, today) for ind in INDICATORS}
+    series_f = {ind[0]: (pool.submit(fetch_ism_pmi) if ind[0] == ISM_ID
+                         else pool.submit(fetch_series, ind[0], api_key, today))
+                for ind in INDICATORS}
     fomc_f = pool.submit(fetch_fomc_dates)
     rel_f = {}
     if api_key:
@@ -339,6 +411,9 @@ def fetch_dashboard(api_key: str = None, deadline: float = DEADLINE_S) -> dict:
     by_release = {rid: _done(f, None) for rid, f in rel_f.items()}
     releases = {sid: by_release[rid] for sid, rid in RELEASE_IDS.items()
                 if by_release.get(rid)}
+
+    ism_rows = _done(series_f[ISM_ID], [])   # release date is computed, needs no API key
+    releases[ISM_ID] = next_ism_release(today, ism_rows[-1][0] if ism_rows else None)
 
     rows, errors = [], []
     for (sid, label, group, timing, kind, unit, freq) in INDICATORS:
