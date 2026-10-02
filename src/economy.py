@@ -10,6 +10,7 @@ calendar requires a key); without one they are simply omitted.
 
 import os
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -201,18 +202,24 @@ def next_release_dates(api_key: str = None, today: date = None) -> dict:
 
 # ── network ──────────────────────────────────────────────────────────────────
 
-def fetch_series(series_id: str, today: date = None) -> list:
-    """One FRED series, last ~800 days. Returns [] on any failure."""
+def fetch_series(series_id: str, today: date = None, retries: int = 3) -> list:
+    """One FRED series, last ~800 days. Returns [] after `retries` failures
+    (FRED's CSV endpoint occasionally times out or drops a connection)."""
     if not _SERIES_ID_RE.match(series_id):
         return []
     start = ((today or date.today()) - timedelta(days=_LOOKBACK_DAYS)).isoformat()
-    try:
-        r = requests.get(_FRED_CSV, params={"id": series_id, "cosd": start},
-                         headers=_HEADERS, timeout=15)
-        r.raise_for_status()
-        return parse_fred_csv(r.text)
-    except requests.RequestException:
-        return []
+    for attempt in range(retries):
+        try:
+            r = requests.get(_FRED_CSV, params={"id": series_id, "cosd": start},
+                             headers=_HEADERS, timeout=20)
+            r.raise_for_status()
+            rows = parse_fred_csv(r.text)
+            if rows:
+                return rows
+        except requests.RequestException:
+            pass
+        time.sleep(1.5 * (attempt + 1))
+    return []
 
 
 def fetch_fomc_dates() -> list:
@@ -231,7 +238,7 @@ def fetch_dashboard(api_key: str = None) -> dict:
     Returns {'indicators': [row...], 'fomc': {...}|None, 'errors': [ids]},
     where each row carries label/group/timing/unit/freq + summarize() output.
     """
-    with ThreadPoolExecutor(max_workers=6) as pool:
+    with ThreadPoolExecutor(max_workers=4) as pool:
         fetched = list(pool.map(lambda ind: fetch_series(ind[0]), INDICATORS))
     fomc_dates = fetch_fomc_dates()
     releases = next_release_dates(api_key)

@@ -787,10 +787,12 @@ def _render_macro_tab(show_title: bool = True):
         )
     with st.spinner("Loading macro indicators…"):
         data = _get_economy(_fred_key())
+    if not data["indicators"] or data["errors"]:
+        _get_economy.clear()   # never serve a failed/partial fetch for 3h
 
     rows = data["indicators"]
     if not rows:
-        st.info("Macro data is unreachable right now (FRED). Try again in a few minutes.")
+        st.info("Macro data is unreachable right now (FRED). Reload the page to retry.")
         return
 
     fomc = data.get("fomc")
