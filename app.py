@@ -772,17 +772,19 @@ def _fmt_macro_value(v: float, unit: str) -> str:
     return f"{v:,.1f}" if abs(v) < 1000 else f"{v:,.0f}"
 
 
-def _render_macro_tab():
+def _render_macro_tab(show_title: bool = True):
     """MACRO tab: inflation, jobs, rates and growth indicators with the
-    change vs. the prior reading, plus the next FOMC decision."""
-    st.markdown(
-        '<div style="font-family:\'IBM Plex Mono\',monospace;">'
-        '<span style="color:#ff6600;font-size:1.05rem;font-weight:600;'
-        'letter-spacing:0.06em;text-transform:uppercase;">MACRO DASHBOARD</span>'
-        '<span style="color:#888;font-size:0.82rem;margin-left:0.6rem;">'
-        '— the numbers that move rates and valuations</span></div>',
-        unsafe_allow_html=True,
-    )
+    change vs. the prior reading, plus the next FOMC decision. Shown on the
+    landing page (no title) and as the last tab after an analysis."""
+    if show_title:
+        st.markdown(
+            '<div style="font-family:\'IBM Plex Mono\',monospace;">'
+            '<span style="color:#ff6600;font-size:1.05rem;font-weight:600;'
+            'letter-spacing:0.06em;text-transform:uppercase;">MACRO DASHBOARD</span>'
+            '<span style="color:#888;font-size:0.82rem;margin-left:0.6rem;">'
+            '— the numbers that move rates and valuations</span></div>',
+            unsafe_allow_html=True,
+        )
     with st.spinner("Loading macro indicators…"):
         data = _get_economy(_fred_key())
 
@@ -1248,6 +1250,7 @@ if not active_tickers:
     )
 
     _render_market_backdrop()
+    _render_macro_tab(show_title=False)
 
     st.markdown('<div style="color:#888;font-size:0.68rem;font-family:\'IBM Plex Mono\',monospace;margin-top:0.6rem;letter-spacing:0.06em;">PREVIEW — RUN AN ANALYSIS TO POPULATE</div>', unsafe_allow_html=True)
 
