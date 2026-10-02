@@ -94,3 +94,16 @@ class TestFomc:
 def test_fetch_series_rejects_bad_id():
     assert economy.fetch_series("../etc/passwd") == []
     assert economy.fetch_series("a b") == []
+
+
+class TestReleaseDates:
+    def test_no_key_returns_empty(self):
+        assert economy.next_release_dates(None) == {}
+
+    def test_maps_series_through_release_ids(self, monkeypatch):
+        monkeypatch.setattr(economy, "_next_date_for_release",
+                            lambda rid, key, today: {10: "2026-10-14", 50: "2026-10-02"}.get(rid))
+        out = economy.next_release_dates("k", today=date(2026, 10, 1))
+        assert out["CPIAUCSL"] == "2026-10-14"
+        assert out["PAYEMS"] == out["UNRATE"] == "2026-10-02"
+        assert "GDP" not in out and "HOUST" not in out   # unresolved releases omitted

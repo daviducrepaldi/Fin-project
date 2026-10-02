@@ -745,9 +745,21 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
 # ── macro tab ─────────────────────────────────────────────────────────────────
 
 @st.cache_data(ttl=3 * 3600, show_spinner=False)
-def _get_economy():
-    """Keyless FRED CSV + Fed FOMC calendar, shared across sessions for 3h."""
-    return economy.fetch_dashboard()
+def _get_economy(api_key=None):
+    """FRED series + Fed FOMC calendar (+ release dates when a FRED key is
+    set), shared across sessions for 3h."""
+    return economy.fetch_dashboard(api_key)
+
+
+def _fred_key():
+    """FRED_API_KEY: env → st.secrets (same lookup order as the Tiingo key)."""
+    key = economy.get_api_key()
+    if not key:
+        try:
+            key = st.secrets.get("FRED_API_KEY")
+        except Exception:
+            key = None
+    return key or None
 
 
 def _fmt_macro_value(v: float, unit: str) -> str:
@@ -772,7 +784,7 @@ def _render_macro_tab():
         unsafe_allow_html=True,
     )
     with st.spinner("Loading macro indicators…"):
-        data = _get_economy()
+        data = _get_economy(_fred_key())
 
     rows = data["indicators"]
     if not rows:
@@ -814,12 +826,17 @@ def _render_macro_tab():
                     chart_type="line",
                     help=f"As of {r['as_of']} · {r['freq']} series (FRED)",
                 )
+                if r.get("next_release"):
+                    nd = datetime.strptime(r["next_release"], "%Y-%m-%d")
+                    days = (nd.date() - datetime.now().date()).days
+                    col.caption(f"Next: {nd.strftime('%b %d')} · "
+                                f"{'today' if days == 0 else f'in {days}d'}")
 
     st.caption(
         "Data: FRED public series + federalreserve.gov. 'Leading' indicators tend to "
-        "turn before the economy does; 'lagging' ones confirm after the fact. "
-        "Next-release dates for CPI, jobs and GDP need a FRED API key and are not "
-        "shown yet."
+        "turn before the economy does; 'lagging' ones confirm after the fact."
+        + ("" if _fred_key() else
+           " Next-release dates need a FRED_API_KEY (.env or Streamlit secrets).")
     )
     if data["errors"]:
         st.caption(f"Unavailable right now: {', '.join(data['errors'])}")

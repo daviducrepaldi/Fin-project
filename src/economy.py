@@ -4,10 +4,11 @@ economy.py — macro indicators (inflation, jobs, rates, growth) and FOMC dates.
 Everything except the two fetch functions is pure and offline-testable.
 Series come from FRED's public CSV endpoint (fredgraph.csv), which needs no
 API key; the FOMC calendar is scraped from federalreserve.gov. Per-indicator
-"next release" dates are NOT available keyless (BLS blocks scripts, FRED's
-release calendar needs a key) — see `next_release_dates` for the key hook.
+"next release" dates need a FRED_API_KEY (BLS blocks scripts, FRED's release
+calendar requires a key); without one they are simply omitted.
 """
 
+import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
@@ -147,11 +148,55 @@ def next_fomc(dates: list, today: date = None) -> Optional[dict]:
     return None
 
 
-def next_release_dates(api_key: str = None) -> dict:
-    """Series id → next scheduled release date (ISO), or {} without a key.
-    Placeholder for the FRED release-calendar integration: the keyless data
-    path has no source for these dates, so the UI shows 'needs FRED key'."""
-    return {}
+# FRED release ids for the non-daily indicators (daily rate series have no
+# meaningful "next release"). Resolved via /fred/series/release.
+RELEASE_IDS = {
+    "CPIAUCSL": 10,    # Consumer Price Index
+    "PCEPI": 54,       # Personal Income and Outlays
+    "PAYEMS": 50,      # Employment Situation
+    "UNRATE": 50,
+    "ICSA": 180,       # Weekly jobless claims
+    "A191RL1Q225SBEA": 53,   # GDP
+    "RSAFS": 9,        # Advance retail sales
+    "HOUST": 27,       # New residential construction
+    "PERMIT": 27,
+    "GACDFSA066MSFRBPHI": 351,   # Philly Fed manufacturing survey
+}
+_FRED_API = "https://api.stlouisfed.org/fred/release/dates"
+
+
+def get_api_key() -> Optional[str]:
+    """FRED key from the environment (fetcher._load_env fills it from .env)."""
+    return os.environ.get("FRED_API_KEY") or None
+
+
+def _next_date_for_release(release_id: int, api_key: str, today: date) -> Optional[str]:
+    try:
+        r = requests.get(_FRED_API, params={
+            "release_id": release_id, "api_key": api_key, "file_type": "json",
+            "include_release_dates_with_no_data": "true",
+            "realtime_start": today.isoformat(), "realtime_end": "9999-12-31",
+            "sort_order": "asc", "limit": 1,
+        }, headers=_HEADERS, timeout=15)
+        r.raise_for_status()
+        dates = r.json().get("release_dates") or []
+        return dates[0]["date"] if dates else None
+    except (requests.RequestException, ValueError, KeyError):
+        return None
+
+
+def next_release_dates(api_key: str = None, today: date = None) -> dict:
+    """Series id → next scheduled release date (ISO). {} without a key or on
+    failure — the UI then simply omits the line."""
+    if not api_key:
+        return {}
+    today = today or date.today()
+    ids = sorted(set(RELEASE_IDS.values()))
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        by_release = dict(zip(ids, pool.map(
+            lambda rid: _next_date_for_release(rid, api_key, today), ids)))
+    return {sid: by_release[rid] for sid, rid in RELEASE_IDS.items()
+            if by_release.get(rid)}
 
 
 # ── network ──────────────────────────────────────────────────────────────────
@@ -180,7 +225,7 @@ def fetch_fomc_dates() -> list:
         return []
 
 
-def fetch_dashboard() -> dict:
+def fetch_dashboard(api_key: str = None) -> dict:
     """
     Pull every indicator (in parallel) plus the FOMC calendar.
     Returns {'indicators': [row...], 'fomc': {...}|None, 'errors': [ids]},
@@ -189,6 +234,7 @@ def fetch_dashboard() -> dict:
     with ThreadPoolExecutor(max_workers=6) as pool:
         fetched = list(pool.map(lambda ind: fetch_series(ind[0]), INDICATORS))
     fomc_dates = fetch_fomc_dates()
+    releases = next_release_dates(api_key)
 
     rows, errors = [], []
     for (sid, label, group, timing, kind, unit, freq), series in zip(INDICATORS, fetched):
@@ -197,5 +243,6 @@ def fetch_dashboard() -> dict:
             errors.append(sid)
             continue
         rows.append({"id": sid, "label": label, "group": group, "timing": timing,
-                     "unit": unit, "freq": freq, **s})
+                     "unit": unit, "freq": freq,
+                     "next_release": releases.get(sid), **s})
     return {"indicators": rows, "fomc": next_fomc(fomc_dates), "errors": errors}
