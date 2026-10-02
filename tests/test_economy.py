@@ -170,3 +170,25 @@ class TestSnapshot:
         bad = tmp_path / "bad.json"
         bad.write_text("{not json")
         assert economy.read_snapshot(bad) is None
+
+
+class TestAssess:
+    def test_lower_is_better(self):
+        assert economy.assess("CPIAUCSL", 2.1) == "good"
+        assert economy.assess("CPIAUCSL", 3.0) == "watch"
+        assert economy.assess("CPIAUCSL", 3.71) == "bad"
+
+    def test_higher_is_better(self):
+        assert economy.assess("A191RL1Q225SBEA", 2.2) == "good"
+        assert economy.assess("A191RL1Q225SBEA", 1.0) == "watch"
+        assert economy.assess("A191RL1Q225SBEA", -0.5) == "bad"
+        assert economy.assess("GACDFSA066MSFRBPHI", 37.8) == "good"
+        assert economy.assess("GACDFSA066MSFRBPHI", -20) == "bad"
+
+    def test_informational_and_unknown(self):
+        assert economy.assess("DGS10", 5.29) is None
+        assert economy.assess("NOPE", 1) is None
+        assert economy.assess("UNRATE", None) is None
+
+    def test_every_indicator_has_a_benchmark(self):
+        assert {i[0] for i in economy.INDICATORS} == set(economy.BENCHMARKS)

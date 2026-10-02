@@ -842,16 +842,26 @@ def _render_macro_tab(show_title: bool = True):
                     chart_type="line",
                     help=f"As of {r['as_of']} · {r['freq']} series (FRED)",
                 )
+                notes = []
+                bench = economy.BENCHMARKS.get(r["id"])
+                if bench:
+                    dot = {"good": "🟢", "watch": "🟡", "bad": "🔴"}.get(
+                        economy.assess(r["id"], r["value"]), "ℹ️")
+                    notes.append(f"{dot} {bench['text']}")
                 if r.get("next_release"):
                     nd = datetime.strptime(r["next_release"], "%Y-%m-%d")
                     days = (nd.date() - datetime.now().date()).days
                     if days >= 0:
-                        col.caption(f"Next: {nd.strftime('%b %d')} · "
-                                    f"{'today' if days == 0 else f'in {days}d'}")
+                        notes.append(f"Next release: {nd.strftime('%b %d')} · "
+                                     f"{'today' if days == 0 else f'in {days}d'}")
+                if notes:
+                    col.caption("  \n".join(notes))
 
     st.caption(
         "Data: FRED public series + federalreserve.gov. 'Leading' indicators tend to "
-        "turn before the economy does; 'lagging' ones confirm after the fact."
+        "turn before the economy does; 'lagging' ones confirm after the fact. "
+        "🟢/🟡/🔴 compare each reading to common rules of thumb — they are "
+        "guides, not forecasts, and some levels (neutral rate, payroll breakeven) are debated."
         + ("" if _fred_key() else
            " Next-release dates need a FRED_API_KEY (.env or Streamlit secrets).")
     )

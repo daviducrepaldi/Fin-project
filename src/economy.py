@@ -43,6 +43,41 @@ INDICATORS = [
     ("PERMIT",            "Building Permits",       "Growth",    "Leading",    "level", "K",  "monthly"),
     ("GACDFSA066MSFRBPHI", "Philly Fed Mfg Index",  "Growth",    "Leading",    "level", "",   "monthly"),
 ]
+# Rule-of-thumb "what's a good number" per indicator: a one-line reading guide
+# plus thresholds for a traffic-light status. These are widely used heuristics,
+# not forecasts — and several (payroll breakeven, neutral rate) are debated.
+# kind 'low'  → lower is better: good ≤ g, watch ≤ w, else bad
+# kind 'high' → higher is better: good ≥ g, watch ≥ w, else bad
+# No thresholds → informational only (no status shown).
+BENCHMARKS = {
+    "CPIAUCSL": {"text": "Fed wants ~2%. Above 3% = running hot", "kind": "low", "good": 2.5, "watch": 3.5},
+    "PCEPI": {"text": "The Fed's official 2% target gauge. Above 3% = hot", "kind": "low", "good": 2.3, "watch": 3.0},
+    "PAYEMS": {"text": "+100K to +200K = healthy. Below 0 = jobs lost", "kind": "high", "good": 100, "watch": 0},
+    "UNRATE": {"text": "4–4.5% ≈ full employment. Above 5.5% = weak", "kind": "low", "good": 4.5, "watch": 5.5},
+    "ICSA": {"text": "Below 250K = healthy. Above 300K = layoffs rising", "kind": "low", "good": 250_000, "watch": 300_000},
+    "DFF": {"text": "Neutral rate ≈ 3% (Fed est.). Above = restrictive, below = easy"},
+    "DGS2": {"text": "Tracks expected Fed moves. Above Fed funds = hikes priced in"},
+    "DGS10": {"text": "Benchmark for mortgages and valuations. Higher = pressure on stocks"},
+    "T10Y2Y": {"text": "Positive = normal curve. Negative (inverted) has preceded recessions", "kind": "high", "good": 0.25, "watch": 0.0},
+    "A191RL1Q225SBEA": {"text": "2–3% = trend growth. Below 0 = contraction", "kind": "high", "good": 2.0, "watch": 0.0},
+    "RSAFS": {"text": "+0.3% or more per month = solid. Negative = consumers pulling back", "kind": "high", "good": 0.3, "watch": 0.0},
+    "HOUST": {"text": "~1.3M/yr = healthy. Below 1.1M = weak housing", "kind": "high", "good": 1300, "watch": 1100},
+    "PERMIT": {"text": "Leads starts. ~1.3M/yr = healthy. Below 1.1M = weak", "kind": "high", "good": 1300, "watch": 1100},
+    "GACDFSA066MSFRBPHI": {"text": "Above 0 = manufacturing expanding, below 0 = shrinking (like ISM's 50 line)", "kind": "high", "good": 5, "watch": -5},
+}
+
+
+def assess(series_id: str, value: float) -> Optional[str]:
+    """'good' / 'watch' / 'bad' against BENCHMARKS, or None when the
+    indicator has no thresholds (informational) or the value is missing."""
+    b = BENCHMARKS.get(series_id)
+    if not b or value is None or "kind" not in b:
+        return None
+    if b["kind"] == "low":
+        return "good" if value <= b["good"] else "watch" if value <= b["watch"] else "bad"
+    return "good" if value >= b["good"] else "watch" if value >= b["watch"] else "bad"
+
+
 GROUP_ORDER = ["Inflation", "Jobs", "Rates", "Growth"]
 
 _SERIES_ID_RE = re.compile(r"^[A-Z0-9]{2,30}$")
