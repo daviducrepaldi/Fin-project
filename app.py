@@ -29,7 +29,7 @@ from datetime import datetime, timedelta
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-from src import db, fetcher, analyzer, technicals, macro
+from src import db, fetcher, analyzer, technicals, macro, economy
 from src.utils import period_to_quarter_label, clean_for_json, classify_sector
 
 # db.init_db() intentionally not called here — the web app reads from JSON files,
@@ -742,6 +742,89 @@ def _get_ticker(ticker: str, force_refresh: bool = False):
         )
 
 
+# ── macro tab ─────────────────────────────────────────────────────────────────
+
+@st.cache_data(ttl=3 * 3600, show_spinner=False)
+def _get_economy():
+    """Keyless FRED CSV + Fed FOMC calendar, shared across sessions for 3h."""
+    return economy.fetch_dashboard()
+
+
+def _fmt_macro_value(v: float, unit: str) -> str:
+    if unit == "%":
+        return f"{v:.2f}%"
+    if unit == "pp":
+        return f"{v:+.2f}pp"
+    if unit == "K":
+        return f"{v:,.0f}K"
+    return f"{v:,.1f}" if abs(v) < 1000 else f"{v:,.0f}"
+
+
+def _render_macro_tab():
+    """MACRO tab: inflation, jobs, rates and growth indicators with the
+    change vs. the prior reading, plus the next FOMC decision."""
+    st.markdown(
+        '<div style="font-family:\'IBM Plex Mono\',monospace;">'
+        '<span style="color:#ff6600;font-size:1.05rem;font-weight:600;'
+        'letter-spacing:0.06em;text-transform:uppercase;">MACRO DASHBOARD</span>'
+        '<span style="color:#888;font-size:0.82rem;margin-left:0.6rem;">'
+        '— the numbers that move rates and valuations</span></div>',
+        unsafe_allow_html=True,
+    )
+    with st.spinner("Loading macro indicators…"):
+        data = _get_economy()
+
+    rows = data["indicators"]
+    if not rows:
+        st.info("Macro data is unreachable right now (FRED). Try again in a few minutes.")
+        return
+
+    fomc = data.get("fomc")
+    if fomc:
+        d = datetime.strptime(fomc["decision_date"], "%Y-%m-%d")
+        when = "today" if fomc["days_away"] == 0 else f"in {fomc['days_away']} days"
+        st.markdown(
+            f'<div style="font-family:\'IBM Plex Mono\',monospace;font-size:0.82rem;'
+            f'color:#ccc;border-left:3px solid #ff6600;padding:0.3rem 0.7rem;margin:0.4rem 0;">'
+            f'NEXT FOMC DECISION: <b style="color:#ff6600;">{d.strftime("%b %d, %Y")}</b> '
+            f'({when})</div>',
+            unsafe_allow_html=True,
+        )
+
+    for group in economy.GROUP_ORDER:
+        grp = [r for r in rows if r["group"] == group]
+        if not grp:
+            continue
+        _section_header(group.upper())
+        for i in range(0, len(grp), 4):
+            cols = st.columns(4)
+            for col, r in zip(cols, grp[i:i + 4]):
+                unit = r["unit"]
+                delta = None
+                if r["change"] is not None:
+                    delta = (f"{r['change']:+,.2f}".rstrip("0").rstrip(".")
+                             if unit != "K" else f"{r['change']:+,.0f}K")
+                    delta = "unchanged" if r["change"] == 0 else delta + " vs prior"
+                col.metric(
+                    f"{r['label']} · {r['timing'].upper()}",
+                    _fmt_macro_value(r["value"], unit),
+                    delta,
+                    delta_color="off",
+                    chart_data=r["history"] if len(r["history"]) > 2 else None,
+                    chart_type="line",
+                    help=f"As of {r['as_of']} · {r['freq']} series (FRED)",
+                )
+
+    st.caption(
+        "Data: FRED public series + federalreserve.gov. 'Leading' indicators tend to "
+        "turn before the economy does; 'lagging' ones confirm after the fact. "
+        "Next-release dates for CPI, jobs and GDP need a FRED API key and are not "
+        "shown yet."
+    )
+    if data["errors"]:
+        st.caption(f"Unavailable right now: {', '.join(data['errors'])}")
+
+
 # ── market intel tab ──────────────────────────────────────────────────────────
 
 def _fmt_signed_pct(v):
@@ -1215,6 +1298,7 @@ comparable_tickers = [t for t, r in all_results.items() if not r.get("fund")]
 tab_labels = list(all_results.keys())
 if len(comparable_tickers) > 1:
     tab_labels.append("⚖ COMPARISON")
+tab_labels.append("🌐 MACRO")
 
 tabs = st.tabs(tab_labels)
 
@@ -1529,7 +1613,7 @@ for tab_idx, ticker in enumerate(all_results.keys()):
 # ── comparison tab ────────────────────────────────────────────────────────────
 
 if len(comparable_tickers) > 1:
-    with tabs[-1]:
+    with tabs[-2]:
         ticker_list = comparable_tickers
         if len(ticker_list) < len(all_results):
             excluded = [t for t in all_results if t not in ticker_list]
@@ -1679,3 +1763,9 @@ if len(comparable_tickers) > 1:
                 rows.append({"Metric": label} | {t: fn(t) for t in ticker_list})
 
         st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+
+# ── macro tab ─────────────────────────────────────────────────────────────────
+
+with tabs[-1]:
+    _render_macro_tab()
