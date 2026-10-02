@@ -38,6 +38,10 @@ INDICATORS = [
     ("PAYEMS",            "Nonfarm Payrolls (MoM)", "Jobs",      "Coincident", "diff",  "K",  "monthly"),
     ("UNRATE",            "Unemployment Rate",      "Jobs",      "Lagging",    "level", "%",  "monthly"),
     ("ICSA",              "Initial Jobless Claims", "Jobs",      "Leading",    "level", "",   "weekly"),
+    ("T5YIE",             "5Y Breakeven Inflation", "Expectations", "Market",   "level", "%",  "daily"),
+    ("T10YIE",            "10Y Breakeven Inflation", "Expectations", "Market",  "level", "%",  "daily"),
+    ("T5YIFR",            "5Y5Y Forward Inflation", "Expectations", "Market",   "level", "%",  "daily"),
+    ("MICH",              "Consumer Inflation Exp. (1Y)", "Expectations", "Survey", "level", "%", "monthly"),
     ("DFF",               "Fed Funds Rate",         "Rates",     "Policy",     "level", "%",  "daily"),
     ("DGS2",              "2Y Treasury Yield",      "Rates",     "Market",     "level", "%",  "daily"),
     ("DGS10",             "10Y Treasury Yield",     "Rates",     "Market",     "level", "%",  "daily"),
@@ -58,6 +62,10 @@ INDICATORS = [
 BENCHMARKS = {
     "CPIAUCSL": {"text": "Fed wants ~2%. Above 3% = running hot", "kind": "low", "good": 2.5, "watch": 3.5},
     "PCEPI": {"text": "The Fed's official 2% target gauge. Above 3% = hot", "kind": "low", "good": 2.3, "watch": 3.0},
+    "T5YIE": {"text": "What bond markets expect inflation to average over 5 years. ~2–2.5% = anchored, above 3% = worry", "kind": "low", "good": 2.5, "watch": 3.0},
+    "T10YIE": {"text": "Same, over 10 years. The Fed watches that it stays near 2–2.5%", "kind": "low", "good": 2.5, "watch": 3.0},
+    "T5YIFR": {"text": "Expected inflation 5 years from now, for 5 years — the Fed's long-run anchor. ~2–2.5% = anchored", "kind": "low", "good": 2.5, "watch": 3.0},
+    "MICH": {"text": "What households expect over the next year (Univ. of Michigan survey). 2.5–3.5% = normal, above 4.5% = elevated", "kind": "low", "good": 3.5, "watch": 4.5},
     "PAYEMS": {"text": "+100K to +200K = healthy. Below 0 = jobs lost", "kind": "high", "good": 100, "watch": 0},
     "UNRATE": {"text": "4–4.5% ≈ full employment. Above 5.5% = weak", "kind": "low", "good": 4.5, "watch": 5.5},
     "ICSA": {"text": "Below 250K = healthy. Above 300K = layoffs rising", "kind": "low", "good": 250_000, "watch": 300_000},
@@ -85,7 +93,7 @@ def assess(series_id: str, value: float) -> Optional[str]:
     return "good" if value >= b["good"] else "watch" if value >= b["watch"] else "bad"
 
 
-GROUP_ORDER = ["Inflation", "Jobs", "Rates", "Growth"]
+GROUP_ORDER = ["Inflation", "Expectations", "Jobs", "Rates", "Growth"]
 
 _SERIES_ID_RE = re.compile(r"^[A-Z0-9]{2,30}$")
 
@@ -200,6 +208,7 @@ RELEASE_IDS = {
     "UNRATE": 50,
     "ICSA": 180,       # Weekly jobless claims
     "A191RL1Q225SBEA": 53,   # GDP
+    "MICH": 91,        # Surveys of Consumers
     "RSAFS": 9,        # Advance retail sales
     "HOUST": 27,       # New residential construction
     "PERMIT": 27,
