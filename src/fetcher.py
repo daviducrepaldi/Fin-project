@@ -293,7 +293,7 @@ def _fetch_insider_transactions(cik: str, recent: dict, limit: int = 8) -> list:
     Best-effort: unparseable filings are skipped, any failure returns
     what was collected so far — this must never break a fetch.
     """
-    import xml.etree.ElementTree as ET
+    from defusedxml import ElementTree as ET
 
     filings = _recent_filings(cik, recent, {"4"}, limit)
     rows = []

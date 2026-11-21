@@ -12,3 +12,7 @@ font = "monospace"
 
 [browser]
 gatherUsageStats = false
+
+# Never show tracebacks to visitors: they can contain request URLs with API keys.
+[client]
+showErrorDetails = false

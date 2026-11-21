@@ -9,6 +9,8 @@ no quota.
 
 import re
 import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as DET
+from defusedxml.common import DefusedXmlException
 from datetime import datetime
 
 import requests
@@ -88,8 +90,8 @@ def parse_rss(xml_text: str, limit: int = 10, default_source: str = "") -> list:
     Skips items without a title or an http(s) link; [] on unparseable XML.
     """
     try:
-        root = ET.fromstring(xml_text)
-    except ET.ParseError:
+        root = DET.fromstring(xml_text)
+    except (ET.ParseError, DefusedXmlException):
         return []
     items = []
     for item in root.iter("item"):
